@@ -198,7 +198,7 @@ Debugger::HandleInput(cell_t cip, bool isBp)
     lastcommand[0] = '\0';
 
     // Extract the first word from the string.
-    result = sscanf(line, "%8s", command);
+    result = sscanf(line, "%31s", command);
     if (result <= 0) {
       ListCommands(nullptr);
       continue;
