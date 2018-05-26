@@ -753,6 +753,10 @@ Debugger::DumpStack()
 
   uint32_t index = 0;
   for (; !frames->Done(); frames->Next(), index++) {
+
+    if (frames->IsInternalFrame())
+      continue;
+
     if (index == selected_frame_) {
       fputs("->", stdout);
     }
