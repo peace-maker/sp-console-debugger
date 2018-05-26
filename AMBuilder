@@ -1,0 +1,21 @@
+# vim: set sts=2 ts=8 sw=2 tw=99 et ft=python:
+import os, sys
+
+projectName = 'console-debugger'
+
+sourceFiles = [
+  'extension.cpp',
+  'debugger.cpp',
+  'console-helpers.cpp',
+  os.path.join(Extension.sm_root, 'public', 'smsdk_ext.cpp')
+]
+
+###############
+# Make sure to edit PackageScript, which copies your files to their appropriate locations
+# Simple extensions do not need to modify past this point.
+
+binary = Extension.Library(builder, projectName + '.ext')
+
+binary.sources += sourceFiles
+
+Extension.extensions += [builder.Add(binary)]
