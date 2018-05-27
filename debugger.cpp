@@ -489,8 +489,10 @@ void
 Debugger::HandleClearBreakpointCmd(char *params)
 {
   if (*params == '*') {
+    size_t num_bps = breakpoint_map_.elements();
     // clear all breakpoints
     ClearAllBreakpoints();
+    printf("\tCleared all %zu breakpoints.\n", num_bps);
   }
   else {
     int number = FindBreakpoint(params);
@@ -560,7 +562,7 @@ Debugger::AddBreakpoint(const char* file, uint32_t line, bool temporary)
   IPluginDebugInfo *debuginfo = context_->GetRuntime()->GetDebugInfo();
   // Are there that many lines in the file?
   uint32_t addr;
-  if (!debuginfo->LookupLineAddress(line, targetfile, &addr))
+  if (debuginfo->LookupLineAddress(line, targetfile, &addr) != SP_ERROR_NONE)
     return nullptr;
 
   Breakpoint *bp;
@@ -587,7 +589,7 @@ Debugger::AddBreakpoint(const char* file, const char *function, bool temporary)
   IPluginDebugInfo *debuginfo = context_->GetRuntime()->GetDebugInfo();
   // Is there a function named like that in the file?
   uint32_t addr;
-  if (!debuginfo->LookupFunctionAddress(function, targetfile, &addr))
+  if (debuginfo->LookupFunctionAddress(function, targetfile, &addr) != SP_ERROR_NONE)
     return nullptr;
 
   Breakpoint *bp;
