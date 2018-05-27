@@ -295,7 +295,7 @@ ConsoleDebugger::FindPluginByConsoleArg(const char *arg)
     // Check for a plugin with that name.
     char pluginfile[256];
     const char *ext = libsys->GetFileExtension(arg) ? "" : ".smx";
-    ke::SafeSprintf(pluginfile, sizeof(pluginfile), "%s%s", arg, ext);
+    libsys->PathFormat(pluginfile, sizeof(pluginfile), "%s%s", arg, ext);
 
     for (; iter->MorePlugins(); iter->NextPlugin()) {
       pl = iter->GetPlugin();
