@@ -33,6 +33,8 @@
 
 unsigned int EnableTerminalEcho();
 void ResetTerminalEcho(unsigned int mode);
+unsigned int DisableEngineWatchdog();
+void ResetEngineWatchdog(unsigned int timeout);
 char *TrimString(char *string);
 char *SkipWhitespace(char *str);
 const char *SkipPath(const char *str);

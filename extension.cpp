@@ -457,8 +457,14 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
   // Features depend on the operating system.
   unsigned int old_flags = EnableTerminalEcho();
 
+  // Disable the game's watchdog timer while we're in the debug shell.
+  unsigned int oldtimeout = DisableEngineWatchdog();
+
   // Start the debugger shell and wait for commands.
   debugger->HandleInput(dbginfo.cip, isBreakpoint);
+
+  // Enable the watchdog timer again if it was enabled before.
+  ResetEngineWatchdog(oldtimeout);
 
   // Reset the console input mode back to the normal flags.
   ResetTerminalEcho(old_flags);

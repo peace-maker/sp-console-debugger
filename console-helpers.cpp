@@ -31,6 +31,7 @@
 #include "console-helpers.h"
 
 #if defined KE_POSIX
+#include <unistd.h>
 #include <termios.h>
 #include <string.h>
 #endif
@@ -74,6 +75,18 @@ ResetTerminalEcho(unsigned int flag)
 {
   SetTerminalLocalMode(flag);
 }
+
+unsigned int
+DisableEngineWatchdog()
+{
+  return alarm(0);
+}
+
+void
+ResetEngineWatchdog(unsigned int timeout)
+{
+  alarm(timeout);
+}
 #elif defined KE_WINDOWS
 unsigned int
 EnableTerminalEcho()
@@ -92,6 +105,17 @@ ResetTerminalEcho(unsigned int mode)
 {
   HANDLE hConsole = GetStdHandle(STD_INPUT_HANDLE);
   SetConsoleMode(hConsole, mode);
+}
+
+unsigned int
+DisableEngineWatchdog()
+{
+  return 0;
+}
+
+void
+ResetEngineWatchdog(unsigned int timeout)
+{
 }
 #endif
 
