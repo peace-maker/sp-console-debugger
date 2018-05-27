@@ -32,8 +32,12 @@
 #include "extension.h"
 #include "debugger.h"
 #include "console-helpers.h"
+#include <amtl/am-platform.h>
 #include <amtl/am-autoptr.h>
 #include <amtl/am-string.h>
+#ifdef KE_POSIX
+#include <ctype.h>
+#endif
 
 using namespace ke;
 
@@ -212,7 +216,7 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
     // Check the sub command.
     const char *arg = args->Arg(4);
     if (!strcmp(arg, "list")) {
-      rootconsole->ConsolePrint("[SM] Listing %d breakpoint(s) for plugin %s:", debugger->GetBreakpointCount(), name);
+      rootconsole->ConsolePrint("[SM] Listing %zu breakpoint(s) for plugin %s:", debugger->GetBreakpointCount(), name);
 
       debugger->ListBreakpoints();
     }

@@ -32,6 +32,7 @@
 
 #if defined KE_POSIX
 #include <termios.h>
+#include <string.h>
 #endif
 #if defined KE_WINDOWS
 #define WIN32_LEAN_AND_MEAN
