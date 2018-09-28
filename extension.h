@@ -38,8 +38,10 @@
  */
 
 #include "smsdk_ext.h"
+#include "amtl/am-hashmap.h"
 
 class Debugger;
+typedef ke::HashMap<IPluginContext *, Debugger *, ke::PointerPolicy<IPluginContext>> DebuggerMap;
 
 /**
  * @brief Sample implementation of the SDK Extension.
@@ -125,15 +127,16 @@ public:
 public:
   virtual void OnRootConsoleCommand(const char *cmdname, const ICommandArgs *args);
 
+public:
+  Debugger *GetPluginDebugger(IPluginContext *ctx);
+
 private:
   IPlugin * FindPluginByConsoleArg(const char *arg);
   bool StartPluginDebugging(IPluginContext *ctx);
 
 private:
   bool debug_next_plugin_ = false;
+  DebuggerMap debugger_map_;
 };
-
-Debugger *GetPluginDebugger(IPluginContext *ctx);
-void SetPluginDebugger(IPluginContext *ctx, Debugger *debugger);
 
 #endif // _INCLUDE_SOURCEMOD_EXTENSION_PROPER_H_

@@ -44,7 +44,7 @@ class Breakpoint;
 
 class Debugger {
 public:
-  Debugger(SourcePawn::IPluginContext *context, SPVM_DEBUGBREAK old_debug_handler);
+  Debugger(SourcePawn::IPluginContext *context);
   bool Initialize();
   bool active();
   void Activate();
@@ -95,11 +95,6 @@ public:
 
   void DumpStack();
 
-public:
-  SPVM_DEBUGBREAK olddebughandler() {
-    return old_debug_handler_;
-  }
-
 private:
   const char *FindFileByPartialName(const char *partialname);
 
@@ -120,7 +115,6 @@ public:
 
 private:
   SourcePawn::IPluginContext * context_;
-  SPVM_DEBUGBREAK old_debug_handler_;
   Runmode runmode_;
   cell_t lastfrm_;
   uint32_t lastline_;

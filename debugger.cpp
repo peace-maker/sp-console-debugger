@@ -34,9 +34,8 @@
 
 using namespace SourcePawn;
 
-Debugger::Debugger(IPluginContext *context, SPVM_DEBUGBREAK old_debug_handler)
+Debugger::Debugger(IPluginContext *context)
   : context_(context),
-  old_debug_handler_(old_debug_handler),
   runmode_(RUNNING),
   lastfrm_(0),
   lastline_(-1),

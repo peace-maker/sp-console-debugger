@@ -41,8 +41,6 @@
 
 using namespace ke;
 
-#define DEBUGGER_CONTEXT_KEY 4
-
 /**
  * @file extension.cpp
  * @brief Implement extension code here.
@@ -57,21 +55,27 @@ void OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const Sou
 bool
 ConsoleDebugger::SDK_OnLoad(char *error, size_t maxlength, bool late)
 {
+  if (smutils->GetScriptingEngine()->GetEngineAPIVersion() < 5)
+  {
+    ke::SafeStrcpy(error, maxlength, "This SourcePawn VM doesn't support line debugging. Please update SourceMod.");
+    return false;
+  }
+
+  if (!debugger_map_.init())
+  {
+    ke::SafeStrcpy(error, maxlength, "Failed to setup plugin -> debugger instance map.");
+    return false;
+  }
+
+  if (smutils->GetScriptingEngine()->SetDebugBreakHandler(OnDebugBreak) != SP_ERROR_NONE)
+  {
+    ke::SafeStrcpy(error, maxlength, "Failed to install debugger in the SourcePawn VM. Enable line debugging support in SourceMod's core.cfg. The extension can't be late loaded after any plugins were already loaded.");
+    return false;
+  }
+
   plsys->AddPluginsListener(this);
 
   rootconsole->AddRootConsoleCommand3("debug", "Debug Plugins", this);
-
-  if (!late)
-    return true;
-
-  IPluginIterator *pliter = plsys->GetPluginIterator();
-  while (pliter->MorePlugins())
-  {
-    IPlugin *pl = pliter->GetPlugin();
-    OnPluginLoaded(pl);
-    pliter->NextPlugin();
-  }
-  delete pliter;
 
   return true;
 }
@@ -86,7 +90,8 @@ ConsoleDebugger::SDK_OnUnload()
   while (pliter->MorePlugins())
   {
     IPlugin *pl = pliter->GetPlugin();
-    OnPluginUnloaded(pl);
+    if (pl->GetStatus() == PluginStatus::Plugin_Running)
+      OnPluginUnloaded(pl);
     pliter->NextPlugin();
   }
   delete pliter;
@@ -95,21 +100,16 @@ ConsoleDebugger::SDK_OnUnload()
 void
 ConsoleDebugger::OnPluginLoaded(IPlugin *plugin)
 {
-  SPVM_DEBUGBREAK oldDebugCallback;
-  int err = plugin->GetBaseContext()->SetDebugBreak(OnDebugBreak, &oldDebugCallback);
-  if (err != SP_ERROR_NONE) {
-    smutils->LogError(myself, "Failed to install debug break callback %d. Newer VM required?", err);
-    return;
-  }
-
   // Create a debugger object for this plugin.
-  Debugger *debugger = new Debugger(plugin->GetBaseContext(), oldDebugCallback);
+  Debugger *debugger = new Debugger(plugin->GetBaseContext());
   if (!debugger->Initialize()) {
     smutils->LogError(myself, "Failed to initialize debugger instance for plugin %s.", plugin->GetFilename());
     delete debugger;
     return;
   }
-  SetPluginDebugger(plugin->GetBaseContext(), debugger);
+
+  DebuggerMap::Insert i = debugger_map_.findForAdd(plugin->GetBaseContext());
+  debugger_map_.add(i, plugin->GetBaseContext(), debugger);
 
   // Start debugging this plugin right away.
   if (debug_next_plugin_) {
@@ -124,17 +124,12 @@ void
 ConsoleDebugger::OnPluginUnloaded(IPlugin *plugin)
 {
   // Cleanup after the plugin.
-  Debugger *debugger = GetPluginDebugger(plugin->GetBaseContext());
-  if (!debugger)
+  DebuggerMap::Result r = debugger_map_.find(plugin->GetBaseContext());
+  if (!r.found())
     return;
 
-  // Restore old callback function.
-  SPVM_DEBUGBREAK oldDebugCallback;
-  plugin->GetBaseContext()->SetDebugBreak(debugger->olddebughandler(), &oldDebugCallback);
-  assert(oldDebugCallback == OnDebugBreak);
-
-  delete debugger;
-  SetPluginDebugger(plugin->GetBaseContext(), nullptr);
+  delete r->value;
+  debugger_map_.remove(r);
 }
 
 void
@@ -332,18 +327,13 @@ ConsoleDebugger::StartPluginDebugging(IPluginContext *ctx)
 }
 
 Debugger *
-GetPluginDebugger(IPluginContext *ctx)
+ConsoleDebugger::GetPluginDebugger(IPluginContext *ctx)
 {
-  Debugger *debugger = nullptr;
-  if (!ctx->GetKey(DEBUGGER_CONTEXT_KEY, (void **)&debugger) || !debugger)
+  DebuggerMap::Result r = debugger_map_.find(ctx);
+  if (!r.found())
     return nullptr;
-  return debugger;
-}
 
-void
-SetPluginDebugger(IPluginContext *ctx, Debugger *debugger)
-{
-  ctx->SetKey(DEBUGGER_CONTEXT_KEY, debugger);
+  return r->value;
 }
 
 void
@@ -352,12 +342,12 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
   // Make sure we know how to interpret the data.
   if (dbginfo.version > DEBUG_BREAK_INFO_VERSION) {
     smutils->LogError(myself, "VM is too new. Debug context version is %x (only support up to %x).", dbginfo.version, DEBUG_BREAK_INFO_VERSION);
-    g_Debugger.OnPluginUnloaded(plsys->FindPluginByContext(ctx->GetContext()));
+    smutils->GetScriptingEngine()->SetDebugBreakHandler(nullptr);
     return;
   }
 
   // Try to get the debugger instance for this plugin.
-  Debugger *debugger = GetPluginDebugger(ctx);
+  Debugger *debugger = g_Debugger.GetPluginDebugger(ctx);
   if (!debugger)
     return;
 

@@ -33,7 +33,7 @@ word "step", you can also type the letter "s" followed by the enter key.
 
 Available commands:
     B(ack)T(race)       display the stack trace
-    BREAK       set breakpoint at line number or variable name
+    BREAK       set breakpoint at line number or function name
     CBREAK      remove breakpoint
     FILES       list all files that this program is composed off
     G(o)        run program (until breakpoint)
