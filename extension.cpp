@@ -451,7 +451,7 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
   unsigned int oldtimeout = DisableEngineWatchdog();
 
   // Start the debugger shell and wait for commands.
-  debugger->HandleInput(dbginfo.cip, isBreakpoint);
+  debugger->HandleInput(dbginfo.cip, dbginfo.frm, isBreakpoint);
 
   // Enable the watchdog timer again if it was enabled before.
   ResetEngineWatchdog(oldtimeout);

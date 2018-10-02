@@ -145,7 +145,7 @@ Debugger::GetBreakpointCount()
 }
 
 void
-Debugger::HandleInput(cell_t cip, bool isBp)
+Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
 {
   // Remember which command was executed last,
   // so you don't have to type it again if you
@@ -158,6 +158,7 @@ Debugger::HandleInput(cell_t cip, bool isBp)
   frame_count_ = 0;
   selected_frame_ = 0;
   cip_ = cip;
+  frm_ = frm;
   selected_context_ = context_;
 
   // Count the frames
@@ -245,10 +246,10 @@ Debugger::HandleInput(cell_t cip, bool isBp)
     else if (!stricmp(command, "cbreak")) {
       HandleClearBreakpointCmd(params);
     }
-    /*else if (!stricmp(command, "disp") || !stricmp(command, "d")) {
+    else if (!stricmp(command, "disp") || !stricmp(command, "d")) {
       HandleVariableDisplayCmd(params);
     }
-    else if (!stricmp(command, "set")) {
+    /*else if (!stricmp(command, "set")) {
       HandleSetVariableCmd(params);
     }*/
     else if (!stricmp(command, "files")) {
@@ -310,14 +311,14 @@ Debugger::ListCommands(const char *command)
       "\tCWATCH n\tremove watch number \"n\"\n"
       "\tCWATCH var\tremove watch from \"var\"\n"
       "\tCWATCH *\tremove all watches\n");
-  }
+  }*/
   else if (!stricmp(command, "d") || !stricmp(command, "disp")) {
     printf("\tDISP may be abbreviated to D\n\n"
       "\tDISP\t\tdisplay all variables that are currently in scope\n"
       "\tDISP var\tdisplay the value of variable \"var\"\n"
       "\tDISP var[i]\tdisplay the value of array element \"var[i]\"\n");
   }
-  else if (!stricmp(command, "f") || !stricmp(command, "frame")) {
+  /*else if (!stricmp(command, "f") || !stricmp(command, "frame")) {
     printf("\tFRAME may be abbreviated to F\n\n");
     printf("\tFRAME n\tselect frame n and show/change local variables in that function\n");
   }*/
@@ -366,10 +367,10 @@ Debugger::ListCommands(const char *command)
   }
   else {
     printf("\tB(ack)T(race)\t\tdisplay the stack trace\n"
-      "\tBREAK\t\tset breakpoint at line number or variable name\n"
+      "\tBREAK\t\tset breakpoint at line number or function name\n"
       "\tCBREAK\t\tremove breakpoint\n"
       //"\tCW(atch)\tremove a \"watchpoint\"\n"
-      //"\tD(isp)\t\tdisplay the value of a variable, list variables\n"
+      "\tD(isp)\t\tdisplay the value of a variable, list variables\n"
       "\tFILES\t\tlist all files that this program is composed off\n"
       //"\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
       //"\tFUNCS\t\tdisplay functions\n"
@@ -500,6 +501,71 @@ Debugger::HandleClearBreakpointCmd(char *params)
     else
       printf("\tCleared breakpoint %d\n", number);
   }
+}
+
+void
+Debugger::HandleVariableDisplayCmd(char *params)
+{
+  uint32_t idx[sDIMEN_MAX];
+  memset(idx, 0, sizeof(idx));
+  IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
+
+  IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(cip_);
+  if (*params == '\0') {
+    // Display all variables that are in scope
+    while (!symbol_iterator->Done()) {
+      IDebugSymbol* sym = symbol_iterator->Next();
+
+      // Print the name and address
+      printf("%s\t<%#8x>\t", ScopeToString(sym->scope()), (sym->scope() == Local || sym->scope() == Arg) ? frm_ + sym->address() : sym->address());
+      if (sym->name() != nullptr) {
+        printf("%s\t", sym->name());
+      }
+
+      // Print the value.
+      DisplayVariable(sym, idx, 0);
+      fputs("\n", stdout);
+    }
+  }
+  // Display a single variable with the given name.
+  else {
+    char *indexptr = strchr(params, '[');
+    char *behindname = nullptr;
+
+    // Parse all [x][y] dimensions
+    int dim = 0;
+    while (indexptr != nullptr && dim < sDIMEN_MAX) {
+      if (behindname == nullptr)
+        behindname = indexptr;
+
+      indexptr++;
+      idx[dim++] = atoi(indexptr);
+      indexptr = strchr(indexptr, '[');
+    }
+
+    // End the string before the first [ temporarily, 
+    // so GetVariable only looks for the variable name.
+    if (behindname != nullptr)
+      *behindname = '\0';
+
+    // find the symbol with the smallest scope
+    IDebugSymbol *sym = FindDebugSymbol(params, cip_, symbol_iterator);
+    if (sym) {
+      // Add the [ back again
+      if (behindname != nullptr)
+        *behindname = '[';
+
+      // Print variable address and name.
+      printf("%s\t<%#8x>\t%s\t", ScopeToString(sym->scope()), (sym->scope() == Local || sym->scope() == Arg) ? frm_ + sym->address() : sym->address(), params);
+      // Print variable value.
+      DisplayVariable(sym, idx, dim);
+      fputs("\n", stdout);
+    }
+    else {
+      fputs("\tSymbol not found, or not a variable\n", stdout);
+    }
+  }
+  debuginfo->DestroySymbolIterator(symbol_iterator);
 }
 
 void
@@ -745,6 +811,230 @@ Debugger::ParseBreakpointLine(char *input, const char **filename)
   input = SkipWhitespace(input);
 
   return input;
+}
+
+IDebugSymbol *
+Debugger::FindDebugSymbol(const char* name, cell_t scopeaddr, IDebugSymbolIterator* symbol_iterator)
+{
+  cell_t codestart = 0, codeend = 0;
+  IDebugSymbol* matching_symbol = nullptr;
+
+  IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
+  while (!symbol_iterator->Done()) {
+    IDebugSymbol* sym = nullptr;
+    while (!symbol_iterator->Done()) {
+      sym = symbol_iterator->Next();
+      // find (next) matching variable
+      if (strcmp(sym->name(), name) == 0)
+        break;
+    }
+
+    // check the range, keep a pointer to the symbol with the smallest range
+    if (strcmp(sym->name(), name) == 0 &&
+       (codestart == 0 && codeend == 0) ||
+       (sym->codestart() >= codestart &&
+        sym->codeend() <= codeend))
+    {
+      matching_symbol = sym;
+      codestart = sym->codestart();
+      codeend = sym->codeend();
+    }
+  }
+  return matching_symbol;
+}
+
+const char *
+Debugger::ScopeToString(SymbolScope scope)
+{
+  static const char *scope_names[] = { "glb", "loc", "sta", "arg" };
+  if (scope < 0 || scope >= sizeof(scope_names) / sizeof(scope_names[0]))
+    return "unk";
+  return scope_names[scope];
+}
+
+bool
+Debugger::GetSymbolValue(IDebugSymbol *sym, uint32_t index, cell_t* value)
+{
+  // Tried to index a non-array.
+  if (index > 0 && !sym->type().isArray())
+    return false;
+
+  // Index out of bounds.
+  if (sym->type().dimcount() > 0 && index >= sym->type().dimcount())
+    return false;
+
+  cell_t addr;
+  if (!GetEffectiveSymbolAddress(sym, &addr))
+    return false;
+
+  // Resolve index into array.
+  cell_t *vptr;
+  if (selected_context_->LocalToPhysAddr(addr + index * sizeof(cell_t), &vptr) != SP_ERROR_NONE)
+    return false;
+
+  if (vptr != nullptr)
+    *value = *vptr;
+
+  return vptr != nullptr;
+}
+
+const char*
+Debugger::GetSymbolString(IDebugSymbol *sym)
+{
+  // Make sure we're dealing with a one-dimensional array.
+  if (!sym->type().isArray() || sym->type().dimcount() != 1)
+    return nullptr;
+
+  cell_t addr;
+  if (!GetEffectiveSymbolAddress(sym, &addr))
+    return false;
+
+  char *str;
+  if (selected_context_->LocalToStringNULL(addr, &str) != SP_ERROR_NONE)
+    return nullptr;
+  return str;
+}
+
+bool
+Debugger::GetEffectiveSymbolAddress(IDebugSymbol *sym, cell_t *address)
+{
+  cell_t base = sym->address();
+  // addresses of local vars are relative to the frame
+  if (sym->scope() == Local || sym->scope() == Arg)
+    base += frm_;
+
+  // a reference
+  cell_t *addr;
+  if (sym->type().isReference()) {
+    if (selected_context_->LocalToPhysAddr(base, &addr) != SP_ERROR_NONE)
+      return false;
+
+    assert(addr != nullptr);
+    base = *addr;
+  }
+
+  *address = base;
+  return true;
+}
+
+void
+Debugger::PrintValue(ISymbolType &type, long value)
+{
+  if (type.isFloat()) {
+    printf("%f", sp_ctof(value));
+  }
+  else if (type.isBoolean()) {
+    switch (value)
+    {
+    case 0:
+      fputs("false", stdout);
+      break;
+    case 1:
+      fputs("true", stdout);
+      break;
+    default:
+      printf("%ld (false)", value);
+      break;
+    }
+  }
+  else {
+    printf("%ld", value);
+  }
+  /*case DISP_HEX:
+    printf("%lx", value);
+    break;*/
+}
+
+void
+Debugger::DisplayVariable(IDebugSymbol *sym, uint32_t index[], uint32_t idxlevel)
+{
+  assert(index != nullptr);
+
+  // first check whether the variable is visible at all
+  if (cip_ < sym->codestart() || cip_ > sym->codeend()) {
+    fputs("(not in scope)", stdout);
+    return;
+  }
+
+  if (sym->type().isArray()) {
+    // Check whether any of the indices are out of range
+    uint32_t dim;
+    for (dim = 0; dim < idxlevel && dim < sym->type().dimcount(); dim++) {
+      if (sym->type().dimension(dim) > 0 && index[dim] >= sym->type().dimension(dim))
+        break;
+    }
+    if (dim < idxlevel) {
+      fputs("(index out of range)", stdout);
+      return;
+    }
+  }
+
+  cell_t value;
+  // Print first dimension of array
+  if (sym->type().isArray() && idxlevel == 0)
+  {
+    // Print string
+    if (sym->type().isString()) {
+      const char *str = GetSymbolString(sym);
+      if (str != nullptr)
+        printf("\"%s\"", str); // TODO: truncate to 40 chars
+      else
+        fputs("NULL_STRING", stdout);
+    }
+    // Print one-dimensional array
+    else if (sym->type().dimcount() == 1) {
+      uint32_t len = sym->type().dimension(0);
+      // Only print the first 5 elements
+      if (len > 5)
+        len = 5;
+      else if (len == 0)
+        len = 1; // unknown array length, assume at least 1 element
+
+      fputs("{", stdout);
+      uint32_t i;
+      for (i = 0; i < len; i++) {
+        if (i > 0)
+          fputs(",", stdout);
+        if (GetSymbolValue(sym, i, &value))
+          PrintValue(sym->type(), value);
+        else
+          fputs("?", stdout);
+      }
+      if (len < sym->type().dimension(0) || sym->type().dimension(0) == 0)
+        fputs(",...", stdout);
+      fputs("}", stdout);
+    }
+    // Not supported..
+    else {
+      fputs("(multi-dimensional array)", stdout);
+    }
+  }
+  else if (!sym->type().isArray() && idxlevel > 0) {
+    // index used on a non-array
+    fputs("(invalid index, not an array)", stdout);
+  }
+  else {
+    // simple variable, or indexed array element
+    assert(idxlevel > 0 || index[0] == 0); // index should be zero if non-array
+    uint32_t dim = 0;
+    cell_t base = 0;
+    if (idxlevel > 0) {
+      for (; dim < idxlevel - 1; dim++) {
+        base += index[dim];
+        if (!GetSymbolValue(sym, base, &value))
+          break;
+        base += value / sizeof(cell_t);
+      }
+    }
+
+    if (GetSymbolValue(sym, base + index[dim], &value) &&
+      sym->type().dimcount() == idxlevel)
+      PrintValue(sym->type(), value);
+    else if (sym->type().dimcount() != idxlevel)
+      fputs("(invalid number of dimensions)", stdout);
+    else
+      fputs("?", stdout);
+  }
 }
 
 void

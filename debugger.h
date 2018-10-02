@@ -50,7 +50,7 @@ public:
   void Activate();
   void Deactivate();
 
-  void HandleInput(cell_t cip, bool isBp);
+  void HandleInput(cell_t cip, cell_t frm, bool isBp);
   void ListCommands(const char *command);
 
 private:
@@ -61,8 +61,8 @@ private:
   void HandleFrameCmd(char *params);*/
   void HandleBreakpointCmd(char *command, char *params);
   void HandleClearBreakpointCmd(char *params);
-  /*void HandleVariableDisplayCmd(char *params);
-  void HandleSetVariableCmd(char *params);*/
+  void HandleVariableDisplayCmd(char *params);
+  //void HandleSetVariableCmd(char *params);
   void HandleFilesListCmd();
  // void HandleDisplayFormatChangeCmd(char *params);
   void HandlePrintPositionCmd();
@@ -94,9 +94,18 @@ public:
   size_t GetBreakpointCount();
 
   void DumpStack();
+  void PrintValue(SourcePawn::ISymbolType &type, long value);
+  void DisplayVariable(SourcePawn::IDebugSymbol *sym, uint32_t index[], uint32_t idxlevel);
+  SourcePawn::IDebugSymbol *FindDebugSymbol(const char* name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
+  
+  bool GetSymbolValue(SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t* value);
+  const char* GetSymbolString(SourcePawn::IDebugSymbol *sym);
+  bool GetEffectiveSymbolAddress(SourcePawn::IDebugSymbol *sym, cell_t *address);
 
 private:
   const char *FindFileByPartialName(const char *partialname);
+
+  const char *ScopeToString(SourcePawn::SymbolScope scope);
 
 public:
   struct BreakpointMapPolicy {
@@ -124,6 +133,7 @@ private:
 
   // Temporary variables to use inside command loop
   cell_t cip_;
+  cell_t frm_;
   uint32_t frame_count_;
   uint32_t selected_frame_;
   SourcePawn::IPluginContext *selected_context_;
