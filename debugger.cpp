@@ -50,8 +50,8 @@ Debugger::Initialize()
   if (!breakpoint_map_.init())
     return false;
 
-  /*if (!watch_table_.init())
-    return false;*/
+  if (!watch_table_.init())
+    return false;
 
   return true;
 }
@@ -74,7 +74,7 @@ Debugger::Deactivate()
   active_ = false;
 
   ClearAllBreakpoints();
-  //ClearAllWatches();
+  ClearAllWatches();
   SetRunmode(RUNNING);
 }
 
@@ -179,7 +179,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     printf("BREAK at line %d in %s\n", lastline_, SkipPath(currentfile_));
 
   // Print all watched variables now.
-  //ListWatches();
+  ListWatches();
 
   char line[512], command[32];
   int result;
@@ -262,13 +262,13 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     else if (!stricmp(command, "pos")) {
       HandlePrintPositionCmd();
     }
-    /*else if (!stricmp(command, "w") || !stricmp(command, "watch")) {
+    else if (!stricmp(command, "w") || !stricmp(command, "watch")) {
       HandleWatchCmd(params);
     }
     else if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
       HandleClearWatchCmd(params);
     }
-    else if (command[0] == 'x' || command[0] == 'X') {
+    /*else if (command[0] == 'x' || command[0] == 'X') {
       HandleDumpMemoryCmd(command, params);
     }*/
     else {
@@ -306,12 +306,12 @@ Debugger::ListCommands(const char *command)
     printf("\tCBREAK n\tremove breakpoint number \"n\"\n"
       "\tCBREAK *\tremove all breakpoints\n");
   }
-  /*else if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
+  else if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
     printf("\tCWATCH may be abbreviated to CW\n\n"
       "\tCWATCH n\tremove watch number \"n\"\n"
       "\tCWATCH var\tremove watch from \"var\"\n"
       "\tCWATCH *\tremove all watches\n");
-  }*/
+  }
   else if (!stricmp(command, "d") || !stricmp(command, "disp")) {
     printf("\tDISP may be abbreviated to D\n\n"
       "\tDISP\t\tdisplay all variables that are currently in scope\n"
@@ -340,10 +340,10 @@ Debugger::ListCommands(const char *command)
       "\tTYPE var HEX\t\tset hexadecimal integer format\n"
       "\tTYPE var FLOAT\t\tset floating point format\n");
   }*/
-  /*else if (!stricmp(command, "watch") || !stricmp(command, "w")) {
+  else if (!stricmp(command, "watch") || !stricmp(command, "w")) {
     printf("\tWATCH may be abbreviated to W\n\n"
       "\tWATCH var\tset a new watch at variable \"var\"\n");
-  }*/
+  }
   /*else if (!stricmp(command, "x")) {
     printf("\tX/FMT ADDRESS\texamine plugin memory at \"ADDRESS\"\n"
       "\tADDRESS is an expression for the memory address to examine.\n"
@@ -369,7 +369,7 @@ Debugger::ListCommands(const char *command)
     printf("\tB(ack)T(race)\t\tdisplay the stack trace\n"
       "\tBREAK\t\tset breakpoint at line number or function name\n"
       "\tCBREAK\t\tremove breakpoint\n"
-      //"\tCW(atch)\tremove a \"watchpoint\"\n"
+      "\tCW(atch)\tremove a \"watchpoint\"\n"
       "\tD(isp)\t\tdisplay the value of a variable, list variables\n"
       "\tFILES\t\tlist all files that this program is composed off\n"
       //"\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
@@ -381,7 +381,7 @@ Debugger::ListCommands(const char *command)
       "\tSET\t\tSet a variable to a value\n"
       "\tS(tep)\t\tsingle step, step into functions\n"
       //"\tTYPE\t\tset the \"display type\" of a symbol\n"
-      //"\tW(atch)\t\tset a \"watchpoint\" on a variable\n"
+      "\tW(atch)\t\tset a \"watchpoint\" on a variable\n"
       //"\tX\t\texamine plugin memory: x/FMT ADDRESS\n"
       "\n\tUse \"? <command name>\" to view more information on a command\n");
   }
@@ -636,6 +636,44 @@ Debugger::HandleSetVariableCmd(char *params)
 }
 
 void
+Debugger::HandleWatchCmd(char *params)
+{
+  if (strlen(params) == 0) {
+    fputs("Missing variable name\n", stdout);
+    return;
+  }
+  // List watched variables right away after adding one.
+  if (AddWatch(params))
+    ListWatches();
+  else
+    fputs("Invalid watch\n", stdout);
+}
+
+void
+Debugger::HandleClearWatchCmd(char *params)
+{
+  if (strlen(params) == 0) {
+    fputs("Missing variable name\n", stdout);
+    return;
+  }
+
+  // Asterix just removes all watched variables.
+  if (*params == '*') {
+    ClearAllWatches();
+  }
+  else if (isdigit(*params)) {
+    // Delete watch by index
+    if (!ClearWatch(atoi(params)))
+      fputs("Bad watch number\n", stdout);
+  }
+  else {
+    if (!ClearWatch(params))
+      fputs("Variable not watched\n", stdout);
+  }
+  ListWatches();
+}
+
+void
 Debugger::HandleFilesListCmd()
 {
   fputs("Source files:\n", stdout);
@@ -878,6 +916,102 @@ Debugger::ParseBreakpointLine(char *input, const char **filename)
   input = SkipWhitespace(input);
 
   return input;
+}
+
+bool
+Debugger::AddWatch(const char* symname)
+{
+  WatchTable::Insert i = watch_table_.findForAdd(symname);
+  if (i.found())
+    return false;
+  watch_table_.add(i, symname);
+  return true;
+}
+
+bool
+Debugger::ClearWatch(const char* symname)
+{
+  WatchTable::Result r = watch_table_.find(symname);
+  if (!r.found())
+    return false;
+  watch_table_.remove(r);
+  return true;
+}
+
+bool
+Debugger::ClearWatch(uint32_t num)
+{
+  if (num < 1 || num > watch_table_.elements())
+    return false;
+
+  uint32_t index = 1;
+  for (WatchTable::iterator iter = WatchTable::iterator(&watch_table_); !iter.empty(); iter.next()) {
+    if (num == index++) {
+      iter.erase();
+      break;
+    }
+  }
+  return true;
+}
+
+void
+Debugger::ClearAllWatches()
+{
+  watch_table_.clear();
+}
+
+void
+Debugger::ListWatches()
+{
+  IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
+  IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(cip_);
+
+  uint32_t num = 1;
+  ke::AString symname;
+  int dim;
+  uint32_t idx[sDIMEN_MAX];
+  const char *indexptr;
+  char *behindname = nullptr;
+  IDebugSymbol *sym;
+  for (WatchTable::iterator iter = WatchTable::iterator(&watch_table_); !iter.empty(); iter.next()) {
+    symname = *iter;
+
+    indexptr = strchr(symname.chars(), '[');
+    behindname = nullptr;
+    dim = 0;
+    memset(idx, 0, sizeof(idx));
+    // Parse all [x][y] dimensions
+    while (indexptr != nullptr && dim < sDIMEN_MAX) {
+      if (behindname == nullptr)
+        behindname = (char *)indexptr;
+
+      indexptr++;
+      idx[dim++] = atoi(indexptr);
+      indexptr = strchr(indexptr, '[');
+    }
+
+    // End the string before the first [ temporarily, 
+    // so FindDebugSymbol only looks for the variable name.
+    if (behindname != nullptr)
+      *behindname = '\0';
+
+    // find the symbol with the smallest scope
+    symbol_iterator->Reset();
+    sym = FindDebugSymbol(symname.chars(), cip_, symbol_iterator);
+    if (sym) {
+      // Add the [ back again
+      if (behindname != nullptr)
+        *behindname = '[';
+
+      printf("%d  %-12s ", num++, symname.chars());
+      DisplayVariable(sym, idx, dim);
+      printf("\n");
+    }
+    else {
+      printf("%d  %-12s (not in scope)\n", num++, symname.chars());
+    }
+  }
+  debuginfo->DestroySymbolIterator(symbol_iterator);
 }
 
 IDebugSymbol *

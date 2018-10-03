@@ -31,6 +31,7 @@
 
 #include "sp_vm_api.h"
 #include "amtl/am-hashmap.h"
+#include "amtl/am-string.h"
 #include "console-helpers.h"
 
 enum Runmode {
@@ -66,9 +67,9 @@ private:
   void HandleFilesListCmd();
  // void HandleDisplayFormatChangeCmd(char *params);
   void HandlePrintPositionCmd();
-  /*void HandleWatchCmd(char *params);
+  void HandleWatchCmd(char *params);
   void HandleClearWatchCmd(char *params);
-  void HandleDumpMemoryCmd(char *command, char *params);*/
+  //void HandleDumpMemoryCmd(char *command, char *params);
 
 public:
   Runmode runmode();
@@ -105,6 +106,12 @@ private:
   bool SetSymbolString(SourcePawn::IDebugSymbol *sym, const char* value);
   bool GetEffectiveSymbolAddress(SourcePawn::IDebugSymbol *sym, cell_t *address);
 
+  bool AddWatch(const char *symname);
+  bool ClearWatch(const char *symname);
+  bool ClearWatch(uint32_t num);
+  void ClearAllWatches();
+  void ListWatches();
+
 private:
   const char *FindFileByPartialName(const char *partialname);
   const char *ScopeToString(SourcePawn::SymbolScope scope);
@@ -121,8 +128,21 @@ public:
     }
   };
   typedef ke::HashMap<ucell_t, Breakpoint *, BreakpointMapPolicy> BreakpointMap;
-
   BreakpointMap breakpoint_map_;
+
+  struct WatchTablePolicy {
+    typedef ke::AString Payload;
+
+    static uint32_t hash(const char *str) {
+      return ke::HashCharSequence(str, strlen(str));
+    }
+
+    static bool matches(const char *key, Payload str) {
+      return str.compare(key) == 0;
+    }
+  };
+  typedef ke::HashTable<WatchTablePolicy> WatchTable;
+  WatchTable watch_table_;
 
 private:
   SourcePawn::IPluginContext * context_;
