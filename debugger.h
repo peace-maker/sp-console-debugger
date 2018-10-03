@@ -62,7 +62,7 @@ private:
   void HandleBreakpointCmd(char *command, char *params);
   void HandleClearBreakpointCmd(char *params);
   void HandleVariableDisplayCmd(char *params);
-  //void HandleSetVariableCmd(char *params);
+  void HandleSetVariableCmd(char *params);
   void HandleFilesListCmd();
  // void HandleDisplayFormatChangeCmd(char *params);
   void HandlePrintPositionCmd();
@@ -93,18 +93,20 @@ public:
   char *ParseBreakpointLine(char *input, const char **filename);
   size_t GetBreakpointCount();
 
+private:
   void DumpStack();
   void PrintValue(SourcePawn::ISymbolType &type, long value);
   void DisplayVariable(SourcePawn::IDebugSymbol *sym, uint32_t index[], uint32_t idxlevel);
   SourcePawn::IDebugSymbol *FindDebugSymbol(const char* name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
   
   bool GetSymbolValue(SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t* value);
+  bool SetSymbolValue(SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t value);
   const char* GetSymbolString(SourcePawn::IDebugSymbol *sym);
+  bool SetSymbolString(SourcePawn::IDebugSymbol *sym, const char* value);
   bool GetEffectiveSymbolAddress(SourcePawn::IDebugSymbol *sym, cell_t *address);
 
 private:
   const char *FindFileByPartialName(const char *partialname);
-
   const char *ScopeToString(SourcePawn::SymbolScope scope);
 
 public:

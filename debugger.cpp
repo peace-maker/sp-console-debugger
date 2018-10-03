@@ -249,9 +249,9 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     else if (!stricmp(command, "disp") || !stricmp(command, "d")) {
       HandleVariableDisplayCmd(params);
     }
-    /*else if (!stricmp(command, "set")) {
+    else if (!stricmp(command, "set")) {
       HandleSetVariableCmd(params);
-    }*/
+    }
     else if (!stricmp(command, "files")) {
       HandleFilesListCmd();
     }
@@ -329,12 +329,12 @@ Debugger::ListCommands(const char *command)
       "\tGO name:n\trun until line number \"n\" in file \"name\"\n"
       "\tGO func\t\trun until the current function returns (\"step out\")\n");
   }
-  /*else if (!stricmp(command, "set")) {
+  else if (!stricmp(command, "set")) {
     printf("\tSET var=value\t\tset variable \"var\" to the numeric value \"value\"\n"
       "\tSET var[i]=value\tset array item \"var\" to a numeric value\n"
       "\tSET var=\"value\"\t\tset string variable \"var\" to string \"value\"\n");
   }
-  else if (!stricmp(command, "type")) {
+  /*else if (!stricmp(command, "type")) {
     printf("\tTYPE var STRING\t\tdisplay \"var\" as string\n"
       "\tTYPE var STD\t\tset default display format (decimal integer)\n"
       "\tTYPE var HEX\t\tset hexadecimal integer format\n"
@@ -378,7 +378,7 @@ Debugger::ListCommands(const char *command)
       "\tN(ext)\t\tRun until next line, step over functions\n"
       "\tPOS\t\tShow current file and line\n"
       "\tQUIT\t\texit debugger\n"
-      //"\tSET\t\tSet a variable to a value\n"
+      "\tSET\t\tSet a variable to a value\n"
       "\tS(tep)\t\tsingle step, step into functions\n"
       //"\tTYPE\t\tset the \"display type\" of a symbol\n"
       //"\tW(atch)\t\tset a \"watchpoint\" on a variable\n"
@@ -392,7 +392,7 @@ Debugger::HandleHelpCmd(const char *line)
 {
   char command[32];
   // See if there is a command specified after the "?".
-  int result = sscanf(line, "%*s %30s", command);
+  int result = sscanf(line, "%*s %31s", command);
   // Display general or special help for the command.
   ListCommands(result == 1 ? command : nullptr);
 }
@@ -564,6 +564,73 @@ Debugger::HandleVariableDisplayCmd(char *params)
     else {
       fputs("\tSymbol not found, or not a variable\n", stdout);
     }
+  }
+  debuginfo->DestroySymbolIterator(symbol_iterator);
+}
+
+void
+Debugger::HandleSetVariableCmd(char *params)
+{
+  IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
+  IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(cip_);
+
+  // TODO: Allow float assignments.
+  // See if this is an array assignment. Only supports single dimensional arrays.
+  char varname[32], strvalue[1024];
+  strvalue[0] = '\0';
+  uint32_t index;
+  cell_t value;
+  if (sscanf(params, " %31[^[ ][%d] = %d", varname, &index, &value) != 3) {
+    index = 0;
+    // Normal variable number assign
+    if (sscanf(params, " %31[^= ] = %d", varname, &value) != 2) {
+      // String assign
+      if (sscanf(params, " %31[^= ] = \"%1023[^\"]\"", varname, strvalue) != 2) {
+        varname[0] = '\0';
+        strvalue[0] = '\0';
+      }
+    }
+  }
+
+  if (varname[0] != '\0') {
+    // Find the symbol within the given range with the smallest scope.
+    IDebugSymbol *sym = FindDebugSymbol(varname, cip_, symbol_iterator);
+    if (sym) {
+      // User gave an integer as value
+      if (strvalue[0] == '\0') {
+        if (SetSymbolValue(sym, index, value)) {
+          if (index > 0)
+            printf("%s[%d] set to %d\n", varname, index, value);
+          else
+            printf("%s set to %d\n", varname, value);
+        }
+        else {
+          if (index > 0)
+            printf("Failed to set %s[%d] to %d\n", varname, index, value);
+          else
+            printf("Failed to set %s to %d\n", varname, value);
+        }
+      }
+      // We have a string as value
+      else {
+        if (!sym->type().isArray()
+          || sym->type().dimcount() != 1) {
+          printf("%s is not a string.\n", varname);
+        }
+        else {
+          if (SetSymbolString(sym, strvalue))
+            printf("%s set to \"%s\"\n", varname, strvalue);
+          else
+            printf("Failed to set %s to \"%s\"\n", varname, strvalue);
+        }
+      }
+    }
+    else {
+      fputs("Symbol not found or not a variable\n", stdout);
+    }
+  }
+  else {
+    fputs("Invalid syntax for \"set\". Type \"? set\".\n", stdout);
   }
   debuginfo->DestroySymbolIterator(symbol_iterator);
 }
@@ -878,6 +945,32 @@ Debugger::GetSymbolValue(IDebugSymbol *sym, uint32_t index, cell_t* value)
   return vptr != nullptr;
 }
 
+bool
+Debugger::SetSymbolValue(IDebugSymbol *sym, uint32_t index, cell_t value)
+{
+  // Tried to index a non-array.
+  if (index > 0 && !sym->type().isArray())
+    return false;
+
+  // Index out of bounds.
+  if (sym->type().dimcount() > 0 && index >= sym->type().dimcount())
+    return false;
+
+  cell_t addr;
+  if (!GetEffectiveSymbolAddress(sym, &addr))
+    return false;
+
+  // Resolve index into array.
+  cell_t *vptr;
+  if (selected_context_->LocalToPhysAddr(addr + index * sizeof(cell_t), &vptr) != SP_ERROR_NONE)
+    return false;
+
+  if (vptr != nullptr)
+    *vptr = value;
+
+  return vptr != nullptr;
+}
+
 const char*
 Debugger::GetSymbolString(IDebugSymbol *sym)
 {
@@ -893,6 +986,20 @@ Debugger::GetSymbolString(IDebugSymbol *sym)
   if (selected_context_->LocalToStringNULL(addr, &str) != SP_ERROR_NONE)
     return nullptr;
   return str;
+}
+
+bool
+Debugger::SetSymbolString(IDebugSymbol *sym, const char* value)
+{
+  // Make sure we're dealing with a one-dimensional array.
+  if (!sym->type().isArray() || sym->type().dimcount() != 1)
+    return nullptr;
+
+  cell_t addr;
+  if (!GetEffectiveSymbolAddress(sym, &addr))
+    return false;
+
+  return selected_context_->StringToLocalUTF8(addr, sym->type().dimension(0), value, NULL) == SP_ERROR_NONE;
 }
 
 bool
