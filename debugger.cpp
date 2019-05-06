@@ -57,7 +57,7 @@ Debugger::Initialize()
 }
 
 bool
-Debugger::active()
+Debugger::active() const
 {
   return active_;
 }
@@ -79,7 +79,7 @@ Debugger::Deactivate()
 }
 
 Runmode
-Debugger::runmode()
+Debugger::runmode() const
 {
   return runmode_;
 }
@@ -91,7 +91,7 @@ Debugger::SetRunmode(Runmode runmode)
 }
 
 cell_t
-Debugger::lastframe()
+Debugger::lastframe() const
 {
   return lastfrm_;
 }
@@ -103,7 +103,7 @@ Debugger::SetLastFrame(cell_t lastfrm)
 }
 
 uint32_t
-Debugger::lastline()
+Debugger::lastline() const
 {
   return lastline_;
 }
@@ -115,7 +115,7 @@ Debugger::SetLastLine(uint32_t line)
 }
 
 uint32_t
-Debugger::breakcount()
+Debugger::breakcount() const
 {
   return breakcount_;
 }
@@ -127,7 +127,7 @@ Debugger::SetBreakCount(uint32_t breakcount)
 }
 
 const char *
-Debugger::currentfile()
+Debugger::currentfile() const
 {
   return currentfile_;
 }
@@ -139,7 +139,7 @@ Debugger::SetCurrentFile(const char *file)
 }
 
 size_t
-Debugger::GetBreakpointCount()
+Debugger::GetBreakpointCount() const
 {
   return breakpoint_map_.elements();
 }
@@ -517,7 +517,7 @@ Debugger::HandleVariableDisplayCmd(char *params)
       IDebugSymbol* sym = symbol_iterator->Next();
 
       // Print the name and address
-      printf("%s\t<%#8x>\t", ScopeToString(sym->scope()), (sym->scope() == Local || sym->scope() == Arg) ? frm_ + sym->address() : sym->address());
+      printf("%s\t<%#8x>\t", ScopeToString(sym->scope()), (sym->scope() == Local || sym->scope() == Argument) ? frm_ + sym->address() : sym->address());
       if (sym->name() != nullptr) {
         printf("%s\t", sym->name());
       }
@@ -556,7 +556,7 @@ Debugger::HandleVariableDisplayCmd(char *params)
         *behindname = '[';
 
       // Print variable address and name.
-      printf("%s\t<%#8x>\t%s\t", ScopeToString(sym->scope()), (sym->scope() == Local || sym->scope() == Arg) ? frm_ + sym->address() : sym->address(), params);
+      printf("%s\t<%#8x>\t%s\t", ScopeToString(sym->scope()), (sym->scope() == Local || sym->scope() == Argument) ? frm_ + sym->address() : sym->address(), params);
       // Print variable value.
       DisplayVariable(sym, idx, dim);
       fputs("\n", stdout);
@@ -1141,7 +1141,7 @@ Debugger::GetEffectiveSymbolAddress(IDebugSymbol *sym, cell_t *address)
 {
   cell_t base = sym->address();
   // addresses of local vars are relative to the frame
-  if (sym->scope() == Local || sym->scope() == Arg)
+  if (sym->scope() == Local || sym->scope() == Argument)
     base += frm_;
 
   // a reference

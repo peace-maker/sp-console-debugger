@@ -47,7 +47,7 @@ class Debugger {
 public:
   Debugger(SourcePawn::IPluginContext *context);
   bool Initialize();
-  bool active();
+  bool active() const;
   void Activate();
   void Deactivate();
 
@@ -72,15 +72,15 @@ private:
   //void HandleDumpMemoryCmd(char *command, char *params);
 
 public:
-  Runmode runmode();
+  Runmode runmode() const;
   void SetRunmode(Runmode runmode);
-  cell_t lastframe();
+  cell_t lastframe() const;
   void SetLastFrame(cell_t lastfrm);
-  uint32_t lastline();
+  uint32_t lastline() const;
   void SetLastLine(uint32_t line);
-  uint32_t breakcount();
+  uint32_t breakcount() const;
   void SetBreakCount(uint32_t breakcount);
-  const char *currentfile();
+  const char *currentfile() const;
   void SetCurrentFile(const char *file);
 
   Breakpoint *AddBreakpoint(const char *file, uint32_t line, bool temporary);
@@ -92,7 +92,7 @@ public:
   int FindBreakpoint(char *breakpoint);
   void ListBreakpoints();
   char *ParseBreakpointLine(char *input, const char **filename);
-  size_t GetBreakpointCount();
+  size_t GetBreakpointCount() const;
 
 private:
   void DumpStack();
