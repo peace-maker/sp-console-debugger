@@ -268,9 +268,9 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     else if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
       HandleClearWatchCmd(params);
     }
-    /*else if (command[0] == 'x' || command[0] == 'X') {
+    else if (command[0] == 'x' || command[0] == 'X') {
       HandleDumpMemoryCmd(command, params);
-    }*/
+    }
     else {
       printf("\tInvalid command \"%s\", use \"?\" to view all commands\n", command);
     }
@@ -344,7 +344,7 @@ Debugger::ListCommands(const char *command)
     printf("\tWATCH may be abbreviated to W\n\n"
       "\tWATCH var\tset a new watch at variable \"var\"\n");
   }
-  /*else if (!stricmp(command, "x")) {
+  else if (!stricmp(command, "x")) {
     printf("\tX/FMT ADDRESS\texamine plugin memory at \"ADDRESS\"\n"
       "\tADDRESS is an expression for the memory address to examine.\n"
       "\tFMT is a repeat count followed by a format letter and a size letter.\n"
@@ -357,7 +357,7 @@ Debugger::ListCommands(const char *command)
       //"\tDefault count is 1.  Default address is following last thing printed\n"
       //"\twith this command or \"disp\".\n"
     );
-  }*/
+  }
   else if (!stricmp(command, "n") || !stricmp(command, "next") ||
     !stricmp(command, "quit") || !stricmp(command, "pos") ||
     !stricmp(command, "s") || !stricmp(command, "step") ||
@@ -382,7 +382,7 @@ Debugger::ListCommands(const char *command)
       "\tS(tep)\t\tsingle step, step into functions\n"
       //"\tTYPE\t\tset the \"display type\" of a symbol\n"
       "\tW(atch)\t\tset a \"watchpoint\" on a variable\n"
-      //"\tX\t\texamine plugin memory: x/FMT ADDRESS\n"
+      "\tX\t\texamine plugin memory: x/FMT ADDRESS\n"
       "\n\tUse \"? <command name>\" to view more information on a command\n");
   }
 }
@@ -703,6 +703,199 @@ Debugger::HandlePrintPositionCmd()
     printf("\tframe: %d", selected_frame_);*/
 
   fputs("\n", stdout);
+}
+
+void
+Debugger::HandleDumpMemoryCmd(char *command, char *params)
+{
+	// Mimic GDB's |x| command.
+	char* fmt = command + 1;
+
+	// Just "x" is invalid.
+	if (strlen(params) == 0) {
+		fputs("Missing address.\n", stdout);
+		return;
+	}
+
+	// Format is x/[count][format][size] <address>
+	// We require a slash.
+	if (*fmt != '/') {
+		fputs("Bad format specifier.\n", stdout);
+		return;
+	}
+	fmt++;
+
+	char* count_str = fmt;
+	// Skip count number
+	while (isdigit(*fmt)) {
+		fmt++;
+	}
+
+	// Default count is 1.
+	int count = 1;
+	// Parse [count] number. The amount of stuff to display.
+	if (count_str != fmt) {
+		count = atoi(count_str);
+		if (count <= 0) {
+			fputs("Invalid count.\n", stdout);
+			return;
+		}
+	}
+
+	// Format letters are o(octal), x(hex), d(decimal), u(unsigned decimal)
+	// t(binary), f(float), a(address), i(instruction), c(char) and s(string).
+	char* format = fmt++;
+	if (*format != 'o' && *format != 'x' && *format != 'd' &&
+		*format != 'u' && *format != 'f' && *format != 'c' &&
+		*format != 's') {
+		printf("Invalid format letter '%c'.\n", *format);
+		return;
+	}
+
+	// Size letters are b(byte), h(halfword), w(word).
+	char size_ltr = *fmt;
+
+	unsigned int size;
+	unsigned int line_break;
+	unsigned int mask;
+	switch (size_ltr) {
+	case 'b':
+		size = 1;
+		line_break = 8;
+		mask = 0x000000ff;
+		break;
+	case 'h':
+		size = 2;
+		line_break = 8;
+		mask = 0x0000ffff;
+		break;
+	case 'w':
+		// Default size is a word, if none was given.
+	case '\0':
+		size = 4;
+		line_break = 4;
+		mask = 0xffffffff;
+		break;
+	default:
+		printf("Invalid size letter '%c'.\n", size_ltr);
+		return;
+	}
+
+	// Skip the size letter.
+	if (size_ltr != '\0')
+		fmt++;
+
+	if (*fmt) {
+		fputs("Invalid output format string.\n", stdout);
+		return;
+	}
+
+	// Parse address.
+	// We support 4 "magic" addresses:
+	// $cip: instruction pointer
+	// $sp: stack pointer
+	// $hp: heap pointer
+	// $frm: frame pointer
+	cell_t address = 0;
+	if (*params == '$') {
+		if (!stricmp(params, "$cip")) {
+			address = cip_;
+		}
+		// TODO: adjust for selected frame like frm_.
+		/*else if (!stricmp(params, "$sp")) {
+			address = selected_context_->sp();
+		}
+		else if (!stricmp(params, "$hp")) {
+			address = selected_context_->hp();
+		}*/
+		else if (!stricmp(params, "$frm")) {
+			address = frm_;
+		}
+		else {
+			printf("Unknown address %s.\n", params);
+			return;
+		}
+	}
+	// This is a raw address.
+	else {
+		address = (cell_t)strtol(params, NULL, 0);
+	}
+
+	// Make sure we just read the plugin's memory.
+	if (selected_context_->LocalToPhysAddr(address, nullptr) != SP_ERROR_NONE) {
+		fputs("Address out of plugin's bounds.\n", stdout);
+		return;
+	}
+
+	// Print the memory
+	// Create a format string for the desired output format.
+	char fmt_string[16];
+	switch (*format) {
+	case 'd':
+	case 'u':
+		ke::SafeSprintf(fmt_string, sizeof(fmt_string), "%%%d%c", size * 2, *format);
+		break;
+	case 'o':
+		ke::SafeSprintf(fmt_string, sizeof(fmt_string), "0%%0%d%c", size * 2, *format);
+		break;
+	case 'x':
+		ke::SafeSprintf(fmt_string, sizeof(fmt_string), "0x%%0%d%c", size * 2, *format);
+		break;
+	case 's':
+		ke::SafeStrcpy(fmt_string, sizeof(fmt_string), "\"%s\"");
+		break;
+	case 'c':
+		ke::SafeStrcpy(fmt_string, sizeof(fmt_string), "'%c'");
+		break;
+	case 'f':
+		ke::SafeStrcpy(fmt_string, sizeof(fmt_string), "%.2f");
+		break;
+	default:
+		return;
+	}
+
+	// Put |count| blocks of formated data on the console.
+	cell_t *data;
+	for (int i = 0; i < count; i++) {
+
+		// Stop when reading out of bounds.
+		// Get the data pointer we want to print.
+		if (selected_context_->LocalToPhysAddr(address, &data) != SP_ERROR_NONE)
+			break;
+
+		// Put |line_break| blocks in one line.
+		if (i % line_break == 0) {
+			if (i > 0)
+				fputs("\n", stdout);
+			printf("0x%x: ", address);
+		}
+
+		// Print the data according to the specified format identifer.
+		switch (*format) {
+		case 'f':
+			printf(fmt_string, sp_ctof(*data));
+			break;
+		case 'd':
+		case 'u':
+		case 'o':
+		case 'x':
+			printf(fmt_string, *data & mask);
+			break;
+		case 's':
+			printf(fmt_string, (char*)data);
+			break;
+		default:
+			printf(fmt_string, *data);
+			break;
+		}
+
+		fputs("  ", stdout);
+
+		// Move to the next address based on the size;
+		address += size;
+	}
+
+	fputs("\n", stdout);
 }
 
 // Breakpoint handling

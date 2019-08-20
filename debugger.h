@@ -69,7 +69,7 @@ private:
   void HandlePrintPositionCmd();
   void HandleWatchCmd(char *params);
   void HandleClearWatchCmd(char *params);
-  //void HandleDumpMemoryCmd(char *command, char *params);
+  void HandleDumpMemoryCmd(char *command, char *params);
 
 public:
   Runmode runmode() const;
