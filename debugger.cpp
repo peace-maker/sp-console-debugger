@@ -1240,9 +1240,9 @@ Debugger::FindDebugSymbol(const char* name, cell_t scopeaddr, IDebugSymbolIterat
 
     // check the range, keep a pointer to the symbol with the smallest range
     if (strcmp(sym->name(), name) == 0 &&
-       (codestart == 0 && codeend == 0) ||
+       ((codestart == 0 && codeend == 0) ||
        (sym->codestart() >= codestart &&
-        sym->codeend() <= codeend))
+        sym->codeend() <= codeend)))
     {
       matching_symbol = sym;
       codestart = sym->codestart();
