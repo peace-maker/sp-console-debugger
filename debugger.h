@@ -58,8 +58,8 @@ private:
   void HandleHelpCmd(const char *line);
   void HandleQuitCmd();
   bool HandleGoCmd(char *params);
-  /*void HandleFunctionListCmd();
-  void HandleFrameCmd(char *params);*/
+  void HandleFunctionListCmd();
+  //void HandleFrameCmd(char *params);
   void HandleBreakpointCmd(char *command, char *params);
   void HandleClearBreakpointCmd(char *params);
   void HandleVariableDisplayCmd(char *params);

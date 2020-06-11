@@ -230,9 +230,9 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
       SetRunmode(STEPOVER);
       return;
     }
-    /*else if (!stricmp(command, "funcs")) {
+    else if (!stricmp(command, "funcs")) {
       HandleFunctionListCmd();
-    }*/
+    }
     else if (!stricmp(command, "bt") || !stricmp(command, "backtrace")) {
       printf("Stack trace:\n");
       DumpStack();
@@ -373,7 +373,7 @@ Debugger::ListCommands(const char *command)
       "\tD(isp)\t\tdisplay the value of a variable, list variables\n"
       "\tFILES\t\tlist all files that this program is composed off\n"
       //"\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
-      //"\tFUNCS\t\tdisplay functions\n"
+      "\tFUNCS\t\tdisplay functions\n"
       "\tG(o)\t\trun program (until breakpoint)\n"
       "\tN(ext)\t\tRun until next line, step over functions\n"
       "\tPOS\t\tShow current file and line\n"
@@ -442,6 +442,27 @@ Debugger::HandleGoCmd(char *params)
   // Return true, to break out of the debugger shell 
   // and continue execution of the plugin.
   return true;
+}
+
+void
+Debugger::HandleFunctionListCmd()
+{
+	fputs("Listing functions:\n", stdout);
+	
+	// Run through all functions with a name and 
+	// print it including the filename where it's defined.
+	IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
+	const char *functionname;
+	const char *filename;
+	for (size_t i = 0; i < debuginfo->NumFunctions(); i++) {
+		functionname = debuginfo->GetFunctionName(i, &filename);
+		if (functionname != nullptr)
+			printf("%s", functionname);
+		if (filename != nullptr) {
+			printf("\t(%s)", SkipPath(filename));
+		}
+		fputs("\n", stdout);
+	}
 }
 
 void
