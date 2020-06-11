@@ -39,8 +39,10 @@ Debugger::Debugger(IPluginContext *context)
   runmode_(RUNNING),
   lastfrm_(0),
   lastline_(-1),
-  currentfile_(""),
-  active_(false)
+  currentfile_(nullptr),
+  currentfunction_(nullptr),
+  active_(false),
+  is_breakpoint_(false)
 {
 }
 
@@ -138,6 +140,18 @@ Debugger::SetCurrentFile(const char *file)
   currentfile_ = file;
 }
 
+const char *
+Debugger::currentfunction() const
+{
+  return currentfunction_;
+}
+
+void
+Debugger::SetCurrentFunction(const char *function)
+{
+  currentfunction_ = function;
+}
+
 size_t
 Debugger::GetBreakpointCount() const
 {
@@ -160,6 +174,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
   cip_ = cip;
   frm_ = frm;
   selected_context_ = context_;
+  is_breakpoint_ = isBp;
 
   // Count the frames
   // Select first scripted frame, if it's not frame 0
@@ -173,10 +188,8 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
 
   context_->DestroyFrameIterator(frames);
 
-  if (!isBp)
-    printf("STOP at line %d in %s\n", lastline_, SkipPath(currentfile_));
-  else
-    printf("BREAK at line %d in %s\n", lastline_, SkipPath(currentfile_));
+  // Show where we've stopped.
+  PrintCurrentPosition();
 
   // Print all watched variables now.
   ListWatches();
@@ -260,7 +273,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
       HandleDisplayFormatChangeCmd(params);
     }*/
     else if (!stricmp(command, "pos")) {
-      HandlePrintPositionCmd();
+      PrintCurrentPosition();
     }
     else if (!stricmp(command, "w") || !stricmp(command, "watch")) {
       HandleWatchCmd(params);
@@ -705,25 +718,6 @@ Debugger::HandleFilesListCmd()
       printf("%s\n", debuginfo->GetFileName(i));
     }
   }
-}
-
-void
-Debugger::HandlePrintPositionCmd()
-{
-  // Print file, function, line and selected frame.
-  printf("\tfile: %s", SkipPath(currentfile_));
-
-  IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
-  const char *function = nullptr;
-  if (debuginfo->LookupFunction(cip_, &function) == SP_ERROR_NONE)
-    printf("\tfunction: %s", function);
-
-  printf("\tline: %d", lastline_);
-
-  /*if (selected_frame_ > 0)
-    printf("\tframe: %d", selected_frame_);*/
-
-  fputs("\n", stdout);
 }
 
 void
@@ -1256,6 +1250,29 @@ Debugger::FindDebugSymbol(const char* name, cell_t scopeaddr, IDebugSymbolIterat
     }
   }
   return matching_symbol;
+}
+
+void
+Debugger::PrintCurrentPosition()
+{
+  if (!is_breakpoint_)
+    printf("STOP");
+  else
+    printf("BREAK");
+
+  // Print file, function, line and selected frame.
+  printf(" at line %d", lastline_);
+
+  if (currentfile_)
+    printf(" in %s", SkipPath(currentfile_));
+
+  if (currentfunction_)
+    printf(" in %s", currentfunction_);
+
+  /*if (selected_frame_ > 0)
+    printf("\tframe: %d", selected_frame_);*/
+
+  fputs("\n", stdout);
 }
 
 const char *

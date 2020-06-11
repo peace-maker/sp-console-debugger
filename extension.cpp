@@ -437,10 +437,14 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
   }
 
   // Remember which file we're in.
-  const char *filename;
-  if (debuginfo->LookupFile(dbginfo.cip, &filename) == SP_ERROR_NONE) {
-    debugger->SetCurrentFile(filename);
-  }
+  const char *filename = nullptr;
+  debuginfo->LookupFile(dbginfo.cip, &filename);
+  debugger->SetCurrentFile(filename);
+
+  // Remember which function we're in.
+  const char *function = nullptr;
+  debuginfo->LookupFunction(dbginfo.cip, &function);
+  debugger->SetCurrentFunction(function);
 
   // Echo input back and enable basic control.
   // This helps to have a shell-like typing experience.

@@ -66,7 +66,6 @@ private:
   void HandleSetVariableCmd(char *params);
   void HandleFilesListCmd();
  // void HandleDisplayFormatChangeCmd(char *params);
-  void HandlePrintPositionCmd();
   void HandleWatchCmd(char *params);
   void HandleClearWatchCmd(char *params);
   void HandleDumpMemoryCmd(char *command, char *params);
@@ -82,6 +81,8 @@ public:
   void SetBreakCount(uint32_t breakcount);
   const char *currentfile() const;
   void SetCurrentFile(const char *file);
+  const char *currentfunction() const;
+  void SetCurrentFunction(const char *function);
 
   Breakpoint *AddBreakpoint(const char *file, uint32_t line, bool temporary);
   Breakpoint *AddBreakpoint(const char *file, const char *function, bool temporary);
@@ -99,6 +100,7 @@ private:
   void PrintValue(SourcePawn::ISymbolType &type, long value);
   void DisplayVariable(SourcePawn::IDebugSymbol *sym, uint32_t index[], uint32_t idxlevel);
   SourcePawn::IDebugSymbol *FindDebugSymbol(const char* name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
+  void PrintCurrentPosition();
   
   bool GetSymbolValue(SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t* value);
   bool SetSymbolValue(SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t value);
@@ -151,6 +153,8 @@ private:
   uint32_t lastline_;
   uint32_t breakcount_;
   const char *currentfile_;
+  const char *currentfunction_;
+  bool is_breakpoint_;
   bool active_;
 
   // Temporary variables to use inside command loop
