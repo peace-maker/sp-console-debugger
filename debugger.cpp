@@ -228,8 +228,8 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
       HandleQuitCmd();
       return;
     }
-    else if (!stricmp(command, "g") || !stricmp(command, "go")) {
-      bool exitConsole = HandleGoCmd(params);
+    else if (!stricmp(command, "c") || !stricmp(command, "continue")) {
+      bool exitConsole = HandleContinueCmd(params);
       if (exitConsole)
         return;
     }
@@ -253,10 +253,10 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     /*else if (!stricmp(command, "f") || !stricmp(command, "frame")) {
       HandleFrameCmd(params);
     }*/
-    else if (!stricmp(command, "break") || !stricmp(command, "tbreak")) {
+    else if (!stricmp(command, "b") || !stricmp(command, "break") || !stricmp(command, "tb") || !stricmp(command, "tbreak")) {
       HandleBreakpointCmd(command, params);
     }
-    else if (!stricmp(command, "cbreak")) {
+    else if (!stricmp(command, "cb")  || !stricmp(command, "cbreak")) {
       HandleClearBreakpointCmd(params);
     }
     else if (!stricmp(command, "disp") || !stricmp(command, "d")) {
@@ -281,7 +281,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     else if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
       HandleClearWatchCmd(params);
     }
-    else if (command[0] == 'x' || command[0] == 'X') {
+    else if (!stricmp(command, "x") || !stricmp(command, "examine")) {
       HandleDumpMemoryCmd(command, params);
     }
     else {
@@ -307,16 +307,18 @@ Debugger::ListCommands(const char *command)
     printf("Options for command \"%s\":\n", command);
   }
 
-  if (!stricmp(command, "break") || !stricmp(command, "tbreak")) {
-    printf("\tUse TBREAK for one-time breakpoints\n\n"
+  if (!stricmp(command, "b") || !stricmp(command, "break") || !stricmp(command, "tb") || !stricmp(command, "tbreak")) {
+    printf("\tUse TBREAK for one-time breakpoints (may be abbreviated to TB)\n"
+      "\tBREAK may be abbreviated to B\n\n"
       "\tBREAK\t\tlist all breakpoints\n"
       "\tBREAK n\t\tset a breakpoint at line \"n\"\n"
       "\tBREAK name:n\tset a breakpoint in file \"name\" at line \"n\"\n"
       "\tBREAK func\tset a breakpoint at function with name \"func\"\n"
       "\tBREAK .\t\tset a breakpoint at the current location\n");
   }
-  else if (!stricmp(command, "cbreak")) {
-    printf("\tCBREAK n\tremove breakpoint number \"n\"\n"
+  else if (!stricmp(command, "cb") || !stricmp(command, "cbreak")) {
+    printf("\tCBREAK may be abbreviated to CB\n\n"
+      "\tCBREAK n\tremove breakpoint number \"n\"\n"
       "\tCBREAK *\tremove all breakpoints\n");
   }
   else if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
@@ -335,12 +337,12 @@ Debugger::ListCommands(const char *command)
     printf("\tFRAME may be abbreviated to F\n\n");
     printf("\tFRAME n\tselect frame n and show/change local variables in that function\n");
   }*/
-  else if (!stricmp(command, "g") || !stricmp(command, "go")) {
-    printf("\tGO may be abbreviated to G\n\n"
-      "\tGO\t\trun until the next breakpoint or program termination\n"
-      "\tGO n\t\trun until line number \"n\"\n"
-      "\tGO name:n\trun until line number \"n\" in file \"name\"\n"
-      "\tGO func\t\trun until the current function returns (\"step out\")\n");
+  else if (!stricmp(command, "c") || !stricmp(command, "continue")) {
+    printf("\tCONTINUE may be abbreviated to C\n\n"
+      "\tCONTINUE\t\trun until the next breakpoint or program termination\n"
+      "\tCONTINUE n\t\trun until line number \"n\"\n"
+      "\tCONTINUE name:n\trun until line number \"n\" in file \"name\"\n"
+      "\tCONTINUE func\t\trun until the current function returns (\"step out\")\n");
   }
   else if (!stricmp(command, "set")) {
     printf("\tSET var=value\t\tset variable \"var\" to the numeric value \"value\"\n"
@@ -357,7 +359,7 @@ Debugger::ListCommands(const char *command)
     printf("\tWATCH may be abbreviated to W\n\n"
       "\tWATCH var\tset a new watch at variable \"var\"\n");
   }
-  else if (!stricmp(command, "x")) {
+  else if (!stricmp(command, "examine") || !stricmp(command, "x")) {
     printf("\tX/FMT ADDRESS\texamine plugin memory at \"ADDRESS\"\n"
       "\tADDRESS is an expression for the memory address to examine.\n"
       "\tFMT is a repeat count followed by a format letter and a size letter.\n"
@@ -380,14 +382,14 @@ Debugger::ListCommands(const char *command)
   }
   else {
     printf("\tB(ack)T(race)\t\tdisplay the stack trace\n"
-      "\tBREAK\t\tset breakpoint at line number or function name\n"
-      "\tCBREAK\t\tremove breakpoint\n"
+      "\tB(reak)\tset breakpoint at line number or function name\n"
+      "\tCB(reak)\t\tremove breakpoint\n"
       "\tCW(atch)\tremove a \"watchpoint\"\n"
       "\tD(isp)\t\tdisplay the value of a variable, list variables\n"
       "\tFILES\t\tlist all files that this program is composed off\n"
       //"\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
       "\tFUNCS\t\tdisplay functions\n"
-      "\tG(o)\t\trun program (until breakpoint)\n"
+      "\tC(ontinue)\trun program (until breakpoint)\n"
       "\tN(ext)\t\tRun until next line, step over functions\n"
       "\tPOS\t\tShow current file and line\n"
       "\tQUIT\t\texit debugger\n"
@@ -395,7 +397,7 @@ Debugger::ListCommands(const char *command)
       "\tS(tep)\t\tsingle step, step into functions\n"
       //"\tTYPE\t\tset the \"display type\" of a symbol\n"
       "\tW(atch)\t\tset a \"watchpoint\" on a variable\n"
-      "\tX\t\texamine plugin memory: x/FMT ADDRESS\n"
+      "\tX\t\teXamine plugin memory: x/FMT ADDRESS\n"
       "\n\tUse \"? <command name>\" to view more information on a command\n");
   }
 }
@@ -418,9 +420,9 @@ Debugger::HandleQuitCmd()
 }
 
 bool
-Debugger::HandleGoCmd(char *params)
+Debugger::HandleContinueCmd(char *params)
 {
-  // "go func" runs until the function returns.
+  // "continue func" runs until the function returns.
   if (!stricmp(params, "func")) {
     SetRunmode(STEPOUT);
     return true;
@@ -441,7 +443,7 @@ Debugger::HandleGoCmd(char *params)
     }
 
     if (bp == nullptr) {
-      fputs("Invalid format or bad breakpoint address. Type \"? go\" for help.\n", stdout);
+      fputs("Invalid format or bad breakpoint address. Type \"? continue\" for help.\n", stdout);
       return false;
     }
 
@@ -490,18 +492,20 @@ Debugger::HandleBreakpointCmd(char *command, char *params)
     if (params == nullptr)
       return;
 
+    bool isTemporary = !stricmp(command, "tbreak") || !stricmp(command, "tb");
+
     Breakpoint *bp;
     // User specified a line number
     if (isdigit(*params)) {
-      bp = AddBreakpoint(filename, strtol(params, NULL, 10) - 1, !stricmp(command, "tbreak"));
+      bp = AddBreakpoint(filename, strtol(params, NULL, 10) - 1, isTemporary);
     }
     // User wants to add a breakpoint at the current location
     else if (*params == '.') {
-      bp = AddBreakpoint(filename, lastline_ - 1, !stricmp(command, "tbreak"));
+      bp = AddBreakpoint(filename, lastline_ - 1, isTemporary);
     }
     // User specified a function name
     else {
-      bp = AddBreakpoint(filename, params, !stricmp(command, "tbreak"));
+      bp = AddBreakpoint(filename, params, isTemporary);
     }
 
     if (bp == nullptr) {

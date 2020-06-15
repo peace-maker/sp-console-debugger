@@ -29,6 +29,9 @@
 * Version: $Id$
 */
 
+#ifndef _INCLUDE_DEBUGGER_H
+#define _INCLUDE_DEBUGGER_H
+
 #include "sp_vm_api.h"
 #include "amtl/am-hashmap.h"
 #include "amtl/am-string.h"
@@ -57,7 +60,7 @@ public:
 private:
   void HandleHelpCmd(const char *line);
   void HandleQuitCmd();
-  bool HandleGoCmd(char *params);
+  bool HandleContinueCmd(char *params);
   void HandleFunctionListCmd();
   //void HandleFrameCmd(char *params);
   void HandleBreakpointCmd(char *command, char *params);
@@ -201,3 +204,5 @@ private:
   const char *name_; /* name of the symbol (function) */
   bool temporary_; /* delete breakpoint when hit? */
 };
+
+#endif // _INCLUDE_DEBUGGER_H

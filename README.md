@@ -32,15 +32,21 @@ use most frequently may be abbreviated to a single letter: instead of the full
 word "step", you can also type the letter "s" followed by the enter key.
 
 Available commands:
-    B(ack)T(race)       display the stack trace
-    BREAK       set breakpoint at line number or function name
-    CBREAK      remove breakpoint
-    FILES       list all files that this program is composed off
-    G(o)        run program (until breakpoint)
-    N(ext)      Run until next line, step over functions
-    POS         Show current file and line
-    QUIT        exit debugger
-    S(tep)      single step, step into functions
+        B(ack)T(race)   display the stack trace
+        B(reak)         set breakpoint at line number or function name
+        CB(reak)        remove breakpoint
+        CW(atch)        remove a "watchpoint"
+        D(isp)          display the value of a variable, list variables
+        FILES           list all files that this program is composed off
+        FUNCS           display functions
+        C(ontinue)      run program (until breakpoint)
+        N(ext)          Run until next line, step over functions
+        POS             Show current file and line
+        QUIT            exit debugger
+        SET             Set a variable to a value
+        S(tep)          single step, step into functions
+        W(atch)         set a "watchpoint" on a variable
+        X               eXamine plugin memory: x/FMT ADDRESS
 
-    Use "? <command name>" to view more information on a command
+        Use "? <command name>" to view more information on a command
 ```
