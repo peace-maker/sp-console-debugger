@@ -394,10 +394,10 @@ Debugger::ListCommands(const char *command)
       //"\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
       "\tFUNCS\t\tdisplay functions\n"
       "\tC(ontinue)\trun program (until breakpoint)\n"
-      "\tN(ext)\t\tRun until next line, step over functions\n"
-      "\tPOS\t\tShow current file and line\n"
+      "\tN(ext)\t\trun until next line, step over functions\n"
+      "\tPOS\t\tshow current file and line\n"
       "\tQUIT\t\texit debugger\n"
-      "\tSET\t\tSet a variable to a value\n"
+      "\tSET\t\tset a variable to a value\n"
       "\tS(tep)\t\tsingle step, step into functions\n"
       //"\tTYPE\t\tset the \"display type\" of a symbol\n"
       "\tW(atch)\t\tset a \"watchpoint\" on a variable\n"
@@ -1304,7 +1304,7 @@ Debugger::GetSymbolValue(IDebugSymbol *sym, uint32_t index, cell_t* value)
     return false;
 
   // Index out of bounds.
-  if (sym->type().dimcount() > 0 && index >= sym->type().dimcount())
+  if (sym->type().dimcount() > 0 && index >= sym->type().dimension(0))
     return false;
 
   cell_t addr;
@@ -1330,7 +1330,7 @@ Debugger::SetSymbolValue(IDebugSymbol *sym, uint32_t index, cell_t value)
     return false;
 
   // Index out of bounds.
-  if (sym->type().dimcount() > 0 && index >= sym->type().dimcount())
+  if (sym->type().dimcount() > 0 && index >= sym->type().dimension(0))
     return false;
 
   cell_t addr;

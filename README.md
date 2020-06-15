@@ -36,14 +36,14 @@ Available commands:
         B(reak)         set breakpoint at line number or function name
         CB(reak)        remove breakpoint
         CW(atch)        remove a "watchpoint"
-        D(isp)          display the value of a variable, list variables
+        P(rint)         display the value of a variable, list variables
         FILES           list all files that this program is composed off
         FUNCS           display functions
         C(ontinue)      run program (until breakpoint)
-        N(ext)          Run until next line, step over functions
-        POS             Show current file and line
+        N(ext)          run until next line, step over functions
+        POS             show current file and line
         QUIT            exit debugger
-        SET             Set a variable to a value
+        SET             set a variable to a value
         S(tep)          single step, step into functions
         W(atch)         set a "watchpoint" on a variable
         X               eXamine plugin memory: x/FMT ADDRESS
