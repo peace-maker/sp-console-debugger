@@ -198,6 +198,9 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
   int result;
   char *params;
   for (;;) {
+    // Show a debugger prompt.
+    fputs("dbg> ", stdout);
+
     // Read debugger command
     fgets(line, sizeof(line), stdin);
 
