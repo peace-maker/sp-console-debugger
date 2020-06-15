@@ -224,7 +224,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     params = strchr(line, ' ');
     params = (params != nullptr) ? SkipWhitespace(params) : (char*)"";
 
-    if (!stricmp(command, "?")) {
+    if (!stricmp(command, "?") || !stricmp(command, "help")) {
       HandleHelpCmd(line);
     }
     else if (!stricmp(command, "quit")) {
@@ -262,7 +262,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     else if (!stricmp(command, "cb")  || !stricmp(command, "cbreak")) {
       HandleClearBreakpointCmd(params);
     }
-    else if (!stricmp(command, "disp") || !stricmp(command, "d")) {
+    else if (!stricmp(command, "print") || !stricmp(command, "p")) {
       HandleVariableDisplayCmd(params);
     }
     else if (!stricmp(command, "set")) {
@@ -330,11 +330,12 @@ Debugger::ListCommands(const char *command)
       "\tCWATCH var\tremove watch from \"var\"\n"
       "\tCWATCH *\tremove all watches\n");
   }
-  else if (!stricmp(command, "d") || !stricmp(command, "disp")) {
-    printf("\tDISP may be abbreviated to D\n\n"
-      "\tDISP\t\tdisplay all variables that are currently in scope\n"
-      "\tDISP var\tdisplay the value of variable \"var\"\n"
-      "\tDISP var[i]\tdisplay the value of array element \"var[i]\"\n");
+  else if (!stricmp(command, "p") || !stricmp(command, "print")) {
+    printf("\tPRINT may be abbreviated to P\n\n"
+      "\tPRINT\t\tdisplay all local variables that are currently in scope\n"
+      "\tPRINT *\tdisplay all variables that are currently in scope including global variables\n"
+      "\tPRINT var\tdisplay the value of variable \"var\"\n"
+      "\tPRINT var[i]\tdisplay the value of array element \"var[i]\"\n");
   }
   /*else if (!stricmp(command, "f") || !stricmp(command, "frame")) {
     printf("\tFRAME may be abbreviated to F\n\n");
@@ -379,7 +380,7 @@ Debugger::ListCommands(const char *command)
   else if (!stricmp(command, "n") || !stricmp(command, "next") ||
     !stricmp(command, "quit") || !stricmp(command, "pos") ||
     !stricmp(command, "s") || !stricmp(command, "step") ||
-    !stricmp(command, "files"))
+    !stricmp(command, "files") || !stricmp(command, "funcs"))
   {
     printf("\tno additional information\n");
   }
@@ -388,7 +389,7 @@ Debugger::ListCommands(const char *command)
       "\tB(reak)\tset breakpoint at line number or function name\n"
       "\tCB(reak)\t\tremove breakpoint\n"
       "\tCW(atch)\tremove a \"watchpoint\"\n"
-      "\tD(isp)\t\tdisplay the value of a variable, list variables\n"
+      "\tP(rint)\t\tdisplay the value of a variable, list variables\n"
       "\tFILES\t\tlist all files that this program is composed off\n"
       //"\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
       "\tFUNCS\t\tdisplay functions\n"
@@ -552,10 +553,14 @@ Debugger::HandleVariableDisplayCmd(char *params)
   IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
 
   IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(cip_);
-  if (*params == '\0') {
+  if (*params == '\0' || *params == '*') {
     // Display all variables that are in scope
     while (!symbol_iterator->Done()) {
       IDebugSymbol* sym = symbol_iterator->Next();
+
+      // Skip global variables in this list.
+      if (*params != '*' && sym->scope() == Global)
+        continue;
 
       // Print the name and address
       printf("%s\t<%#8x>\t", ScopeToString(sym->scope()), (sym->scope() == Local || sym->scope() == Argument) ? frm_ + sym->address() : sym->address());
