@@ -29,12 +29,13 @@
  * Version: $Id$
  */
 
+#include <memory>
+#include <string>
+
 #include "extension.h"
 #include "debugger.h"
 #include "console-helpers.h"
 #include <amtl/am-platform.h>
-#include <amtl/am-autoptr.h>
-#include <amtl/am-string.h>
 #ifdef KE_POSIX
 #include <ctype.h>
 #endif
@@ -275,7 +276,7 @@ ConsoleDebugger::FindPluginByConsoleArg(const char *arg)
 
   id = strtol(arg, &end, 10);
 
-  AutoPtr<IPluginIterator> iter(plsys->GetPluginIterator());
+  std::unique_ptr<IPluginIterator> iter(plsys->GetPluginIterator());
   if (*end == '\0')
   {
     // Get plugin by order in the list.

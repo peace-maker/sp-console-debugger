@@ -32,9 +32,10 @@
 #ifndef _INCLUDE_DEBUGGER_H
 #define _INCLUDE_DEBUGGER_H
 
+#include <string>
+
 #include "sp_vm_api.h"
 #include "amtl/am-hashmap.h"
-#include "amtl/am-string.h"
 #include "console-helpers.h"
 
 enum Runmode {
@@ -100,16 +101,16 @@ public:
 
 private:
   void DumpStack();
-  void PrintValue(SourcePawn::ISymbolType &type, long value);
-  void DisplayVariable(SourcePawn::IDebugSymbol *sym, uint32_t index[], uint32_t idxlevel);
-  SourcePawn::IDebugSymbol *FindDebugSymbol(const char* name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
+  void PrintValue(const SourcePawn::ISymbolType* type, long value);
+  void DisplayVariable(const SourcePawn::IDebugSymbol *sym, uint32_t index[], uint32_t idxlevel);
+  const SourcePawn::IDebugSymbol *FindDebugSymbol(const char* name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
   void PrintCurrentPosition();
   
-  bool GetSymbolValue(SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t* value);
-  bool SetSymbolValue(SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t value);
-  const char* GetSymbolString(SourcePawn::IDebugSymbol *sym);
-  bool SetSymbolString(SourcePawn::IDebugSymbol *sym, const char* value);
-  bool GetEffectiveSymbolAddress(SourcePawn::IDebugSymbol *sym, cell_t *address);
+  bool GetSymbolValue(const SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t* value);
+  bool SetSymbolValue(const SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t value);
+  const char* GetSymbolString(const SourcePawn::IDebugSymbol *sym);
+  bool SetSymbolString(const SourcePawn::IDebugSymbol *sym, const char* value);
+  bool GetEffectiveSymbolAddress(const SourcePawn::IDebugSymbol *sym, cell_t *address);
 
   bool AddWatch(const char *symname);
   bool ClearWatch(const char *symname);
@@ -136,7 +137,7 @@ public:
   BreakpointMap breakpoint_map_;
 
   struct WatchTablePolicy {
-    typedef ke::AString Payload;
+    typedef std::string Payload;
 
     static uint32_t hash(const char *str) {
       return ke::HashCharSequence(str, strlen(str));
