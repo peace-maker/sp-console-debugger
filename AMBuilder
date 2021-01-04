@@ -4,9 +4,11 @@ import os, sys
 projectName = 'console-debugger'
 
 sourceFiles = [
-  'extension.cpp',
-  'debugger.cpp',
+  'breakpoints.cpp',
+  'commands.cpp',
   'console-helpers.cpp',
+  'debugger.cpp',
+  'extension.cpp',
   os.path.join(Extension.sm_root, 'public', 'smsdk_ext.cpp')
 ]
 

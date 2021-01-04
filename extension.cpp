@@ -2,7 +2,7 @@
  * vim: set ts=4 :
  * =============================================================================
  * SourceMod Console Debugger Extension
- * Copyright (C) 2016-2018 AlliedModders LLC.  All rights reserved.
+ * Copyright (C) 2018-2021 Peace-Maker  All rights reserved.
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -209,12 +209,13 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
       return;
     }
 
+    BreakpointManager& breakpoints = debugger->breakpoints();
     // Check the sub command.
     const char *arg = args->Arg(4);
     if (!strcmp(arg, "list")) {
-      rootconsole->ConsolePrint("[SM] Listing %zu breakpoint(s) for plugin %s:", debugger->GetBreakpointCount(), name);
+      rootconsole->ConsolePrint("[SM] Listing %zu breakpoint(s) for plugin %s:", breakpoints.GetBreakpointCount(), name);
 
-      debugger->ListBreakpoints();
+      breakpoints.ListBreakpoints();
     }
     else if (!strcmp(arg, "add")) {
       if (argcount < 6) {
@@ -222,15 +223,15 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
         return;
       }
 
-      const char *bpline = args->Arg(5);
+      std::string bpline = args->Arg(5);
 
       // check if a filename precedes the breakpoint location
-      const char *filename = nullptr;
-      bpline = debugger->ParseBreakpointLine((char *)bpline, &filename);
+      std::string filename;
+      bpline = breakpoints.ParseBreakpointLine(bpline, &filename);
 
       // User didn't specify a filename. 
       // Use the main source file by default (last one in the list).
-      if (!filename) {
+      if (filename.empty()) {
         IPluginDebugInfo *debuginfo = pl->GetRuntime()->GetDebugInfo();
         if (debuginfo->NumFiles() <= 0)
           return;
@@ -239,11 +240,11 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
 
       Breakpoint *bp = nullptr;
       // User specified a line number
-      if (isdigit(*bpline))
-        bp = debugger->AddBreakpoint(filename, strtol(bpline, NULL, 10) - 1, false);
+      if (isdigit(bpline[0]))
+        bp = breakpoints.AddBreakpoint(filename, strtol(bpline.c_str(), NULL, 10) - 1, false);
       // User specified a function name
       else
-        bp = debugger->AddBreakpoint(filename, bpline, false);
+        bp = breakpoints.AddBreakpoint(filename, bpline, false);
 
       if (!bp)
         rootconsole->ConsolePrint("[SM] Invalid breakpoint address specification.");
@@ -259,7 +260,7 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
 
       const char *bpstr = args->Arg(5);
       int bpnum = strtoul(bpstr, NULL, 10);
-      if (debugger->ClearBreakpoint(bpnum))
+      if (breakpoints.ClearBreakpoint(bpnum))
         rootconsole->ConsolePrint("[SM] Breakpoint cleared.");
       else
         rootconsole->ConsolePrint("[SM] Failed to clear breakpoint.");
@@ -396,7 +397,7 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
       debugger->runmode() != Runmode::STEPOVER)
     {
       // Check breakpoint address
-      isBreakpoint = debugger->CheckBreakpoint(dbginfo.cip);
+      isBreakpoint = debugger->breakpoints().CheckBreakpoint(dbginfo.cip);
       // Continue execution normally.
       if (!isBreakpoint)
         return;
