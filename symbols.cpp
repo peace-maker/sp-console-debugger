@@ -181,7 +181,7 @@ SymbolWrapper::DisplayVariable(uint32_t index[], uint32_t idxlevel)
     uint32_t idx[sDIMEN_MAX];
     memset(idx, 0, sizeof(idx));
     fputs("{", stdout);
-    for (size_t i = 0; i < type->esfieldcount(); i++) {
+    for (uint32_t i = 0; i < type->esfieldcount(); i++) {
       if (i > 0)
         fputs(", ", stdout);
 

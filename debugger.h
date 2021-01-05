@@ -66,7 +66,7 @@ public:
 
 private:
   //void HandleFrameCmd(char *params);
- // void HandleDisplayFormatChangeCmd(char *params);
+  //void HandleDisplayFormatChangeCmd(char *params);
 
 public:
   Runmode runmode() const {

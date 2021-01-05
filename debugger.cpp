@@ -193,21 +193,13 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
       return;
     }
     
-#if 0
     /*else if (!stricmp(command, "f") || !stricmp(command, "frame")) {
       HandleFrameCmd(params);
-    }*/
+    }
     // Change display format of symbol
-    /*else if (!stricmp(command, "type")) {
+    else if (!stricmp(command, "type")) {
       HandleDisplayFormatChangeCmd(params);
     }*/
-    else if (!stricmp(command, "w") || !stricmp(command, "watch")) {
-      HandleWatchCmd(params);
-    }
-    else if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
-      HandleClearWatchCmd(params);
-    }
-#endif
   }
 }
 
