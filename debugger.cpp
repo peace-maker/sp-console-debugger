@@ -147,6 +147,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     if (!std::getline(std::cin, line)) {
       // Ctrl+C? Not sure what's the best behavior here.
       SetRunmode(RUNNING);
+      std::cout << std::endl;
       break;
     }
     line = trimString(line);

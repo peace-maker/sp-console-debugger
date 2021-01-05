@@ -43,7 +43,7 @@ enum CommandResult {
 
 class DebuggerCommand {
 public:
-  DebuggerCommand(Debugger* debugger, std::vector<std::string> names, const std::string description) : debugger_(debugger), names_(names), description_(description) {}
+  DebuggerCommand(Debugger* debugger, std::vector<std::string> names, const std::string description) : debugger_(debugger), names_(names), description_(description), match_start_only_(false) {}
   virtual ~DebuggerCommand() {}
   virtual const std::string GetMatch(const std::string& command);
   virtual CommandResult Accept(const std::string& command, const std::string& params) = 0;
@@ -56,6 +56,7 @@ protected:
   Debugger *debugger_;
   std::vector<std::string> names_;
   std::string description_;
+  bool match_start_only_;
 };
 
 class BacktraceCommand : public DebuggerCommand {
@@ -94,7 +95,10 @@ public:
 
 class ExamineMemoryCommand : public DebuggerCommand {
 public:
-  ExamineMemoryCommand(Debugger* debugger) : DebuggerCommand(debugger, { "x" }, "eXamine plugin memory: x/FMT ADDRESS") {}
+  ExamineMemoryCommand(Debugger* debugger) : DebuggerCommand(debugger, { "x" }, "eXamine plugin memory: x/FMT ADDRESS") {
+    // Allow fuzzy matching of command like "x/32xw".
+    match_start_only_ = true;
+  }
   virtual CommandResult Accept(const std::string& command, const std::string& params);
   virtual bool LongHelp(const std::string& command);
 };

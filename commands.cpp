@@ -40,9 +40,15 @@ DebuggerCommand::GetMatch(const std::string& command) {
   // Check if any of the command names start with the given command input.
   std::string best_match;
   for (auto& name : names_) {
-    // Find the shortest alias that's matching the input.
-    if (name.rfind(command) == 0 && (best_match.empty() || best_match.size() > name.size()))
-      best_match = name;
+    if (match_start_only_) {
+      if (command.find(name) == 0 && (best_match.empty() || best_match.size() > name.size()))
+        best_match = name;
+    }
+    else {
+      // Find the shortest alias that's matching the input.
+      if (name.find(command) == 0 && (best_match.empty() || best_match.size() > name.size()))
+        best_match = name;
+    }
   }
   return best_match;
 }
