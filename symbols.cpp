@@ -408,9 +408,9 @@ SymbolWrapper::GetEffectiveSymbolAddress(cell_t *address)
   if (symbol_->scope() == SourcePawn::Local || symbol_->scope() == SourcePawn::Argument)
     base += debugger_->frm();
 
-  // a reference
+  // a reference. arrays are always passed by reference.
   cell_t *addr;
-  if (symbol_->type()->isReference()) {
+  if (symbol_->type()->isReference() || (symbol_->type()->isArray() && symbol_->scope() == SourcePawn::Argument)) {
     if (debugger_->ctx()->LocalToPhysAddr(base, &addr) != SP_ERROR_NONE)
       return false;
 
