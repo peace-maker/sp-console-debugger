@@ -506,11 +506,7 @@ PrintVariableCommand::Accept(const std::string& command, const std::string& para
         continue;
 
       // Print the name and address
-      printf("%s\t<%#8x>\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address());
-      if (sym->symbol()->name() != nullptr) {
-        // TODO: print type as well.
-        printf("%s\t", sym->symbol()->name());
-      }
+      printf("%s\t<%#8x>\t%s\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address(), static_cast<std::string>(*sym).c_str());
 
       // Print the value.
       sym->DisplayVariable(idx, 0);

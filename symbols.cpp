@@ -30,6 +30,7 @@
 */
 #include "symbols.h"
 #include "debugger.h"
+#include <sstream>
 
 bool
 SymbolManager::Initialize() {
@@ -281,7 +282,7 @@ SymbolWrapper::DisplayVariable(uint32_t index[], uint32_t idxlevel)
 void
 SymbolWrapper::PrintValue(const SourcePawn::ISymbolType* type, long value)
 {
-  if (type->isFloat()) {
+  if (type->isFloat32()) {
     printf("%f", sp_ctof(value));
   }
   else if (type->isBoolean()) {
@@ -419,4 +420,75 @@ SymbolWrapper::GetEffectiveSymbolAddress(cell_t *address)
 
   *address = base;
   return true;
+}
+
+SymbolWrapper::operator std::string() const
+{
+  return renderType(symbol_->type(), symbol_->name() ? symbol_->name() : "");
+}
+
+std::string
+SymbolWrapper::renderType(const SourcePawn::ISymbolType* type, const std::string& name) const
+{
+  std::stringstream output;
+  if (type->isConstant())
+    output << "const ";
+
+  if (type->isReference())
+    output << "&";
+
+  if (type->isBoolean())
+    output << "bool";
+  else if (type->isInt32())
+    output << "int";
+  else if (type->isFloat32())
+    output << "float";
+  else if (type->isString())
+    output << "char";
+  else if (type->isAny())
+    output << "any";
+  else if (type->isInt32())
+    output << "int";
+  else if (type->isVoid())
+    output << "void";
+  //else if (type->isTopFunction())
+  //  output << "Function";
+  else if (type->isEnum() || type->isEnumStruct() || type->isStruct())
+    output << type->name();
+  else if (type->isObject())
+    output << "<object>";
+  else
+    output << "<unknown>";
+
+  if (type->isArray()) {
+    // Fixed array dimensions are specified after the variable name
+    // instead of in the type directly.
+    bool hasPostDimensions = true;
+    std::stringstream dimensions;
+    for (uint32_t dim = 0; dim < type->dimcount(); dim++) {
+      if (type->dimension(dim) > 0)
+        dimensions << '[' << type->dimension(dim) << ']';
+      else {
+        dimensions << "[]";
+        hasPostDimensions = false;
+      }
+    }
+
+    if (!hasPostDimensions)
+      output << dimensions.str();
+    if (!name.empty())
+      output << ' ' + name;
+    if (hasPostDimensions)
+      output << dimensions.str();
+  }
+  else if (!name.empty())
+    output << ' ' << name;
+
+  return output.str();
+}
+
+std::ostream&
+operator<<(std::ostream& strm, const SymbolWrapper& sym)
+{
+  return strm << sym.renderType(sym.symbol()->type(), sym.symbol()->name() ? sym.symbol()->name() : "");
 }

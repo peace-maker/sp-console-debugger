@@ -52,11 +52,14 @@ public:
   const SourcePawn::IDebugSymbol* symbol() const {
     return symbol_;
   }
+  operator std::string() const;
+  std::string renderType(const SourcePawn::ISymbolType* type, const std::string& name) const;
 
 private:
   Debugger* debugger_;
   const SourcePawn::IDebugSymbol* symbol_;
 };
+std::ostream& operator<<(std::ostream& strm, const SymbolWrapper& sym);
 
 class SymbolManager {
 public:
