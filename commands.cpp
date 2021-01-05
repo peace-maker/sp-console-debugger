@@ -104,7 +104,7 @@ BreakpointCommand::Accept(const std::string& command, const std::string& params)
 }
 
 bool
-BreakpointCommand::LongHelp(const std::string command) {
+BreakpointCommand::LongHelp(const std::string& command) {
   std::cout << "\tUse TBREAK for one-time breakpoints (may be abbreviated to TB)\n"
     "\tBREAK may be abbreviated to B\n\n"
     "\tBREAK\t\tlist all breakpoints\n"
@@ -138,10 +138,44 @@ ClearBreakpointCommand::Accept(const std::string& command, const std::string& pa
 }
 
 bool
-ClearBreakpointCommand::LongHelp(const std::string command) {
+ClearBreakpointCommand::LongHelp(const std::string& command) {
   std::cout << "\tCBREAK may be abbreviated to CB\n\n"
     "\tCBREAK n\tremove breakpoint number \"n\"\n"
     "\tCBREAK *\tremove all breakpoints\n";
+  return true;
+}
+
+CommandResult
+ClearWatchVariableCommand::Accept(const std::string& command, const std::string& params) {
+  if (params.empty()) {
+    std::cout << "Missing variable name\n";
+    return CR_StayCommandLoop;
+  }
+
+  SymbolManager& symbols = debugger_->symbols();
+  // Asterix just removes all watched variables.
+  if (params == "*") {
+    symbols.ClearAllWatches();
+  }
+  else if (isdigit(params[0])) {
+    // Delete watch by index
+    if (!symbols.ClearWatch(atoi(params.c_str())))
+      std::cout << "Bad watch number\n";
+  }
+  else {
+    if (!symbols.ClearWatch(params))
+      std::cout << "Variable not watched\n";
+  }
+  symbols.ListWatches();
+  return CR_StayCommandLoop;
+}
+
+bool
+ClearWatchVariableCommand::LongHelp(const std::string& command) {
+  std::cout << "\tCWATCH may be abbreviated to CW\n\n"
+      "\tCWATCH n\tremove watch number \"n\"\n"
+      "\tCWATCH var\tremove watch from \"var\"\n"
+    "\tCWATCH *\tremove all watches\n";
   return true;
 }
 
@@ -185,7 +219,7 @@ ContinueCommand::Accept(const std::string& command, const std::string& params) {
 }
 
 bool
-ContinueCommand::LongHelp(const std::string command) {
+ContinueCommand::LongHelp(const std::string& command) {
   std::cout << "\tCONTINUE may be abbreviated to C\n\n"
     "\tCONTINUE\t\trun until the next breakpoint or program termination\n"
     "\tCONTINUE n\t\trun until line number \"n\"\n"
@@ -387,7 +421,7 @@ ExamineMemoryCommand::Accept(const std::string& command, const std::string& para
 }
 
 bool
-ExamineMemoryCommand::LongHelp(const std::string command) {
+ExamineMemoryCommand::LongHelp(const std::string& command) {
  std::cout << "\tX/FMT ADDRESS\texamine plugin memory at \"ADDRESS\"\n"
     "\tADDRESS is an expression for the memory address to examine.\n"
     "\tFMT is a repeat count followed by a format letter and a size letter.\n"
@@ -468,6 +502,7 @@ PrintVariableCommand::Accept(const std::string& command, const std::string& para
       // Print the name and address
       printf("%s\t<%#8x>\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address());
       if (sym->symbol()->name() != nullptr) {
+        // TODO: print type as well.
         printf("%s\t", sym->symbol()->name());
       }
 
@@ -495,6 +530,7 @@ PrintVariableCommand::Accept(const std::string& command, const std::string& para
     std::unique_ptr<SymbolWrapper> sym = debugger_->symbols().FindDebugSymbol(name, debugger_->cip(), symbol_iterator);
     if (sym) {
       // Print variable address and name.
+      // TODO: print type as well.
       printf("%s\t<%#8x>\t%s\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address(), params.c_str());
       // Print variable value.
       sym->DisplayVariable(idx, dim);
@@ -509,7 +545,7 @@ PrintVariableCommand::Accept(const std::string& command, const std::string& para
 }
 
 bool
-PrintVariableCommand::LongHelp(const std::string command) {
+PrintVariableCommand::LongHelp(const std::string& command) {
   std::cout << "\tPRINT may be abbreviated to P\n\n"
     "\tPRINT\t\tdisplay all local variables that are currently in scope\n"
     "\tPRINT *\tdisplay all variables that are currently in scope including global variables\n"
@@ -593,7 +629,7 @@ SetVariableCommand::Accept(const std::string& command, const std::string& params
 }
 
 bool
-SetVariableCommand::LongHelp(const std::string command) {
+SetVariableCommand::LongHelp(const std::string& command) {
   std::cout << "\tSET var=value\t\tset variable \"var\" to the numeric value \"value\"\n"
     "\tSET var[i]=value\tset array item \"var\" to a numeric value\n"
     "\tSET var=\"value\"\t\tset string variable \"var\" to string \"value\"\n";
@@ -604,4 +640,27 @@ CommandResult
 StepCommand::Accept(const std::string& command, const std::string& params) {
   debugger_->SetRunmode(STEPPING);
   return CR_LeaveCommandLoop;
+}
+
+CommandResult
+WatchVariableCommand::Accept(const std::string& command, const std::string& params) {
+  if (params.empty()) {
+    std::cout << "Missing variable name\n";
+    return CR_StayCommandLoop;
+  }
+
+  SymbolManager& symbols = debugger_->symbols();
+  // List watched variables right away after adding one.
+  if (symbols.AddWatch(params))
+    symbols.ListWatches();
+  else
+    std::cout << "Invalid watch\n";
+  return CR_StayCommandLoop;
+}
+
+bool
+WatchVariableCommand::LongHelp(const std::string& command) {
+  std::cout << "\tWATCH may be abbreviated to W\n\n"
+    "\tWATCH var\tset a new watch at variable \"var\"\n";
+  return true;
 }

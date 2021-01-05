@@ -38,9 +38,7 @@ using namespace SourcePawn;
 bool
 BreakpointManager::Initialize()
 {
-  if (!breakpoint_map_.init())
-    return false;
-  return true;
+  return breakpoint_map_.init();
 }
 
 size_t

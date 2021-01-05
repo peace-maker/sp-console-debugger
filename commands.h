@@ -68,28 +68,35 @@ class BreakpointCommand : public DebuggerCommand {
 public:
   BreakpointCommand(Debugger* debugger) : DebuggerCommand(debugger, {"break", "tbreak", "b"}, "set breakpoint at line number or function name") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
-  virtual bool LongHelp(const std::string command);
+  virtual bool LongHelp(const std::string& command);
 };
 
 class ClearBreakpointCommand : public DebuggerCommand {
 public:
   ClearBreakpointCommand(Debugger* debugger) : DebuggerCommand(debugger, { "cbreak" }, "remove breakpoint") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
-  virtual bool LongHelp(const std::string command);
+  virtual bool LongHelp(const std::string& command);
+};
+
+class ClearWatchVariableCommand : public DebuggerCommand {
+public:
+  ClearWatchVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "cwatch" }, "remove a \"watchpoint\"") {}
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
+  virtual bool LongHelp(const std::string& command);
 };
 
 class ContinueCommand : public DebuggerCommand {
 public:
   ContinueCommand(Debugger* debugger) : DebuggerCommand(debugger, { "continue", "c" }, "run program (until breakpoint)") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
-  virtual bool LongHelp(const std::string command);
+  virtual bool LongHelp(const std::string& command);
 };
 
 class ExamineMemoryCommand : public DebuggerCommand {
 public:
   ExamineMemoryCommand(Debugger* debugger) : DebuggerCommand(debugger, { "x" }, "eXamine plugin memory: x/FMT ADDRESS") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
-  virtual bool LongHelp(const std::string command);
+  virtual bool LongHelp(const std::string& command);
 };
 
 class FilesCommand : public DebuggerCommand {
@@ -120,7 +127,7 @@ class PrintVariableCommand : public DebuggerCommand {
 public:
   PrintVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "print", "p" }, "display the value of a variable, list variables") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
-  virtual bool LongHelp(const std::string command);
+  virtual bool LongHelp(const std::string& command);
 };
 
 class QuitCommand : public DebuggerCommand {
@@ -133,13 +140,20 @@ class SetVariableCommand : public DebuggerCommand {
 public:
   SetVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "set" }, "set a variable to a value") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
-  virtual bool LongHelp(const std::string command);
+  virtual bool LongHelp(const std::string& command);
 };
 
 class StepCommand : public DebuggerCommand {
 public:
-  StepCommand(Debugger* debugger) : DebuggerCommand(debugger, { "step" }, "single step, step into functions") {}
+  StepCommand(Debugger* debugger) : DebuggerCommand(debugger, { "step", "s" }, "single step, step into functions") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
+};
+
+class WatchVariableCommand : public DebuggerCommand {
+public:
+  WatchVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "watch" }, "set a \"watchpoint\" on a variable") {}
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
+  virtual bool LongHelp(const std::string& command);
 };
 
 #endif // _INCLUDE_DEBUGGER_COMMAND_H

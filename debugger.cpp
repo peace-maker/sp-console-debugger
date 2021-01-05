@@ -55,6 +55,7 @@ Debugger::Debugger(IPluginContext *context)
   commands_.push_back(std::make_shared<BacktraceCommand>(this));
   commands_.push_back(std::make_shared<BreakpointCommand>(this));
   commands_.push_back(std::make_shared<ClearBreakpointCommand>(this));
+  commands_.push_back(std::make_shared<ClearWatchVariableCommand>(this));
   commands_.push_back(std::make_shared<ContinueCommand>(this));
   commands_.push_back(std::make_shared<FilesCommand>(this));
   commands_.push_back(std::make_shared<FunctionsCommand>(this));
@@ -65,6 +66,7 @@ Debugger::Debugger(IPluginContext *context)
   commands_.push_back(std::make_shared<SetVariableCommand>(this));
   commands_.push_back(std::make_shared<StepCommand>(this));
   commands_.push_back(std::make_shared<ExamineMemoryCommand>(this));
+  commands_.push_back(std::make_shared<WatchVariableCommand>(this));
 }
 
 bool
@@ -73,7 +75,7 @@ Debugger::Initialize()
   if (!breakpoints_.Initialize())
     return false;
 
-  if (!watch_table_.init())
+  if (!symbols_.Initialize())
     return false;
 
   return true;
@@ -91,7 +93,7 @@ Debugger::Deactivate()
   active_ = false;
 
   breakpoints_.ClearAllBreakpoints();
-  ClearAllWatches();
+  symbols_.ClearAllWatches();
   SetRunmode(RUNNING);
 }
 
@@ -134,7 +136,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
   PrintCurrentPosition();
 
   // Print all watched variables now.
-  ListWatches();
+  symbols_.ListWatches();
 
   std::string line, command, params;
   for (;;) {
@@ -142,7 +144,11 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     std::cout << "dbg> ";
 
     // Read debugger command.
-    std::getline(std::cin, line);
+    if (!std::getline(std::cin, line)) {
+      // Ctrl+C? Not sure what's the best behavior here.
+      SetRunmode(RUNNING);
+      break;
+    }
     line = trimString(line);
 
     // Repeat the last command, if no new command was given.
@@ -171,7 +177,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
 
     // Handle inbuilt help command.
     if (!stricmp(command.c_str(), "?") || !stricmp(command.c_str(), "help")) {
-      ListCommands(!params.empty() ? params : "");
+      ListCommands(params);
       continue;
     }
 
@@ -269,169 +275,22 @@ Debugger::ListCommands(const std::string command)
     std::cout << "\tno additional information\n";
   }
 
-#if 0
-  if (!stricmp(command, "cw") || !stricmp(command, "cwatch")) {
-    printf("\tCWATCH may be abbreviated to CW\n\n"
-      "\tCWATCH n\tremove watch number \"n\"\n"
-      "\tCWATCH var\tremove watch from \"var\"\n"
-      "\tCWATCH *\tremove all watches\n");
-  }
-  /*else if (!stricmp(command, "f") || !stricmp(command, "frame")) {
+  /*if (!stricmp(command, "f") || !stricmp(command, "frame")) {
     printf("\tFRAME may be abbreviated to F\n\n");
     printf("\tFRAME n\tselect frame n and show/change local variables in that function\n");
-  }*/
-  /*else if (!stricmp(command, "type")) {
+  }
+  else if (!stricmp(command, "type")) {
     printf("\tTYPE var STRING\t\tdisplay \"var\" as string\n"
       "\tTYPE var STD\t\tset default display format (decimal integer)\n"
       "\tTYPE var HEX\t\tset hexadecimal integer format\n"
       "\tTYPE var FLOAT\t\tset floating point format\n");
-  }*/
-  else if (!stricmp(command, "watch") || !stricmp(command, "w")) {
-    printf("\tWATCH may be abbreviated to W\n\n"
-      "\tWATCH var\tset a new watch at variable \"var\"\n");
   }
   else {
-    printf("\tCW(atch)\tremove a \"watchpoint\"\n"
-      //"\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
-      //"\tTYPE\t\tset the \"display type\" of a symbol\n"
-      "\tW(atch)\t\tset a \"watchpoint\" on a variable\n"
+    printf(
+      "\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
+      "\tTYPE\t\tset the \"display type\" of a symbol\n"
       "\n\tUse \"? <command name>\" to view more information on a command\n");
-  }
-#endif
-}
-
-void
-Debugger::HandleWatchCmd(char *params)
-{
-  if (strlen(params) == 0) {
-    fputs("Missing variable name\n", stdout);
-    return;
-  }
-  // List watched variables right away after adding one.
-  if (AddWatch(params))
-    ListWatches();
-  else
-    fputs("Invalid watch\n", stdout);
-}
-
-void
-Debugger::HandleClearWatchCmd(char *params)
-{
-  if (strlen(params) == 0) {
-    fputs("Missing variable name\n", stdout);
-    return;
-  }
-
-  // Asterix just removes all watched variables.
-  if (*params == '*') {
-    ClearAllWatches();
-  }
-  else if (isdigit(*params)) {
-    // Delete watch by index
-    if (!ClearWatch(atoi(params)))
-      fputs("Bad watch number\n", stdout);
-  }
-  else {
-    if (!ClearWatch(params))
-      fputs("Variable not watched\n", stdout);
-  }
-  ListWatches();
-}
-
-bool
-Debugger::AddWatch(const char* symname)
-{
-  WatchTable::Insert i = watch_table_.findForAdd(symname);
-  if (i.found())
-    return false;
-  watch_table_.add(i, symname);
-  return true;
-}
-
-bool
-Debugger::ClearWatch(const char* symname)
-{
-  WatchTable::Result r = watch_table_.find(symname);
-  if (!r.found())
-    return false;
-  watch_table_.remove(r);
-  return true;
-}
-
-bool
-Debugger::ClearWatch(uint32_t num)
-{
-  if (num < 1 || num > watch_table_.elements())
-    return false;
-
-  uint32_t index = 1;
-  for (WatchTable::iterator iter = WatchTable::iterator(&watch_table_); !iter.empty(); iter.next()) {
-    if (num == index++) {
-      iter.erase();
-      break;
-    }
-  }
-  return true;
-}
-
-void
-Debugger::ClearAllWatches()
-{
-  watch_table_.clear();
-}
-
-void
-Debugger::ListWatches()
-{
-  IPluginDebugInfo *debuginfo = selected_context_->GetRuntime()->GetDebugInfo();
-  IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(cip_);
-
-  uint32_t num = 1;
-  std::string symname;
-  int dim;
-  uint32_t idx[sDIMEN_MAX];
-  const char *indexptr;
-  char *behindname = nullptr;
-  std::unique_ptr<SymbolWrapper> sym;
-  for (WatchTable::iterator iter = WatchTable::iterator(&watch_table_); !iter.empty(); iter.next()) {
-    symname = *iter;
-
-    indexptr = strchr(symname.c_str(), '[');
-    behindname = nullptr;
-    dim = 0;
-    memset(idx, 0, sizeof(idx));
-    // Parse all [x][y] dimensions
-    while (indexptr != nullptr && dim < sDIMEN_MAX) {
-      if (behindname == nullptr)
-        behindname = (char *)indexptr;
-
-      indexptr++;
-      idx[dim++] = atoi(indexptr);
-      indexptr = strchr(indexptr, '[');
-    }
-
-    // End the string before the first [ temporarily, 
-    // so FindDebugSymbol only looks for the variable name.
-    if (behindname != nullptr)
-      *behindname = '\0';
-
-    // find the symbol with the smallest scope
-    symbol_iterator->Reset();
-    sym = symbols_.FindDebugSymbol(symname.c_str(), cip_, symbol_iterator);
-    if (sym) {
-      // Add the [ back again
-      if (behindname != nullptr)
-        *behindname = '[';
-
-      printf("%d  %-12s ", num++, symname.c_str());
-      sym->DisplayVariable(idx, dim);
-      printf("\n");
-    }
-    else {
-      printf("%d  %-12s (not in scope)\n", num++, symname.c_str());
-    }
-  }
-  debuginfo->DestroySymbolIterator(symbol_iterator);
+  }*/
 }
 
 void

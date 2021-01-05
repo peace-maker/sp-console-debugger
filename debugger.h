@@ -67,8 +67,6 @@ public:
 private:
   //void HandleFrameCmd(char *params);
  // void HandleDisplayFormatChangeCmd(char *params);
-  void HandleWatchCmd(char *params);
-  void HandleClearWatchCmd(char *params);
 
 public:
   Runmode runmode() const {
@@ -129,27 +127,6 @@ public:
 
 private:
   std::shared_ptr<DebuggerCommand> ResolveCommandString(const std::string command);
-
-  bool AddWatch(const char *symname);
-  bool ClearWatch(const char *symname);
-  bool ClearWatch(uint32_t num);
-  void ClearAllWatches();
-  void ListWatches();
-
-private:
-  struct WatchTablePolicy {
-    typedef std::string Payload;
-
-    static uint32_t hash(const char *str) {
-      return ke::HashCharSequence(str, strlen(str));
-    }
-
-    static bool matches(const char *key, Payload str) {
-      return str.compare(key) == 0;
-    }
-  };
-  typedef ke::HashTable<WatchTablePolicy> WatchTable;
-  WatchTable watch_table_;
 
 private:
   SourcePawn::IPluginContext * context_;

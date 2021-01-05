@@ -31,8 +31,13 @@
 #include "symbols.h"
 #include "debugger.h"
 
+bool
+SymbolManager::Initialize() {
+  return watch_table_.init();
+}
+
 std::unique_ptr<SymbolWrapper>
-SymbolManager::FindDebugSymbol(const std::string name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator)
+SymbolManager::FindDebugSymbol(const std::string& name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator)
 {
   cell_t codestart = 0, codeend = 0;
   const SourcePawn::IDebugSymbol* matching_symbol = nullptr;
@@ -58,7 +63,105 @@ SymbolManager::FindDebugSymbol(const std::string name, cell_t scopeaddr, SourceP
       codeend = sym->codeend();
     }
   }
+  if (!matching_symbol)
+    return nullptr;
   return std::make_unique<SymbolWrapper>(debugger_, matching_symbol);
+}
+
+bool
+SymbolManager::AddWatch(const std::string& symname)
+{
+  WatchTable::Insert i = watch_table_.findForAdd(symname);
+  if (i.found())
+    return false;
+  watch_table_.add(i, symname);
+  return true;
+}
+
+bool
+SymbolManager::ClearWatch(const std::string& symname)
+{
+  WatchTable::Result r = watch_table_.find(symname);
+  if (!r.found())
+    return false;
+  watch_table_.remove(r);
+  return true;
+}
+
+bool
+SymbolManager::ClearWatch(uint32_t num)
+{
+  if (num < 1 || num > watch_table_.elements())
+    return false;
+
+  uint32_t index = 1;
+  for (WatchTable::iterator iter = WatchTable::iterator(&watch_table_); !iter.empty(); iter.next()) {
+    if (num == index++) {
+      iter.erase();
+      break;
+    }
+  }
+  return true;
+}
+
+void
+SymbolManager::ClearAllWatches()
+{
+  watch_table_.clear();
+}
+
+void
+SymbolManager::ListWatches()
+{
+  SourcePawn::IPluginDebugInfo *debuginfo = debugger_->ctx()->GetRuntime()->GetDebugInfo();
+  SourcePawn::IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(debugger_->cip());
+
+  uint32_t num = 1;
+  std::string symname;
+  int dim;
+  uint32_t idx[sDIMEN_MAX];
+  const char *indexptr;
+  char *behindname = nullptr;
+  std::unique_ptr<SymbolWrapper> sym;
+  for (WatchTable::iterator iter = WatchTable::iterator(&watch_table_); !iter.empty(); iter.next()) {
+    symname = *iter;
+
+    indexptr = strchr(symname.c_str(), '[');
+    behindname = nullptr;
+    dim = 0;
+    memset(idx, 0, sizeof(idx));
+    // Parse all [x][y] dimensions
+    while (indexptr != nullptr && dim < sDIMEN_MAX) {
+      if (behindname == nullptr)
+        behindname = (char *)indexptr;
+
+      indexptr++;
+      idx[dim++] = atoi(indexptr);
+      indexptr = strchr(indexptr, '[');
+    }
+
+    // End the string before the first [ temporarily, 
+    // so FindDebugSymbol only looks for the variable name.
+    if (behindname != nullptr)
+      *behindname = '\0';
+
+    // find the symbol with the smallest scope
+    symbol_iterator->Reset();
+    sym = FindDebugSymbol(symname.c_str(), debugger_->cip(), symbol_iterator);
+    if (sym) {
+      // Add the [ back again
+      if (behindname != nullptr)
+        *behindname = '[';
+
+      printf("%d  %-12s ", num++, symname.c_str());
+      sym->DisplayVariable(idx, dim);
+      printf("\n");
+    }
+    else {
+      printf("%d  %-12s (not in scope)\n", num++, symname.c_str());
+    }
+  }
+  debuginfo->DestroySymbolIterator(symbol_iterator);
 }
 
 void

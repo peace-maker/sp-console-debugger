@@ -32,6 +32,7 @@
 #define _INCLUDE_DEBUGGER_SYMBOL_H
 
 #include <sp_vm_api.h>
+#include "amtl/am-hashmap.h"
 #include <memory>
 #include <string>
 
@@ -60,9 +61,31 @@ private:
 class SymbolManager {
 public:
   SymbolManager(Debugger* debugger) : debugger_(debugger) {}
-  std::unique_ptr<SymbolWrapper> FindDebugSymbol(const std::string name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
+  bool Initialize();
+  std::unique_ptr<SymbolWrapper> FindDebugSymbol(const std::string& name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
+
+  bool AddWatch(const std::string& symname);
+  bool ClearWatch(const std::string& symname);
+  bool ClearWatch(uint32_t num);
+  void ClearAllWatches();
+  void ListWatches();
 
 private:
+  struct WatchTablePolicy {
+    typedef std::string Key;
+    typedef std::string Payload;
+
+    static uint32_t hash(const Key& str) {
+      return ke::HashCharSequence(str.c_str(), str.size());
+    }
+
+    static bool matches(const Key& key, Payload& str) {
+      return str.compare(key) == 0;
+    }
+  };
+  typedef ke::HashTable<WatchTablePolicy> WatchTable;
+  WatchTable watch_table_;
+
   Debugger* debugger_;
 };
 
