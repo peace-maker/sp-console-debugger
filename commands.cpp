@@ -87,7 +87,7 @@ BreakpointCommand::Accept(const std::string& command, const std::string& params)
   }
   // User wants to add a breakpoint at the current location
   else if (breakpoint_location[0] == '.') {
-    bp = debugger_->breakpoints().AddBreakpoint(filename, debugger_->lastline() - 1, isTemporary);
+    bp = debugger_->breakpoints().AddBreakpoint(filename, debugger_->cip(), isTemporary);
   }
   // User specified a function name
   else {
@@ -219,7 +219,7 @@ ContinueCommand::Accept(const std::string& command, const std::string& params) {
   }
 
   debugger_->SetRunmode(RUNNING);
-  // Return true, to break out of the debugger shell 
+  // Break out of the debugger shell 
   // and continue execution of the plugin.
   return CR_LeaveCommandLoop;
 }

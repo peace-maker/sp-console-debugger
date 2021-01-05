@@ -81,17 +81,11 @@ public:
   void SetLastFrame(cell_t lastfrm) {
     lastfrm_ = lastfrm;
   }
-  uint32_t lastline() const {
+  uint32_t currentline() const {
     return lastline_;
   }
-  void SetLastLine(uint32_t line) {
+  void SetCurrentLine(uint32_t line) {
     lastline_ = line;
-  }
-  uint32_t breakcount() const {
-    return breakcount_;
-  }
-  void SetBreakCount(uint32_t breakcount) {
-    breakcount_ = breakcount;
   }
   const char *currentfile() const {
     return currentfile_;
@@ -133,7 +127,6 @@ private:
   Runmode runmode_;
   cell_t lastfrm_;
   uint32_t lastline_;
-  uint32_t breakcount_;
   const char *currentfile_;
   const char *currentfunction_;
   bool is_breakpoint_;

@@ -44,15 +44,15 @@ class BreakpointManager {
 public:
   BreakpointManager(Debugger* debugger) : debugger_(debugger) {}
   bool Initialize();
-  Breakpoint *AddBreakpoint(const std::string file, uint32_t line, bool temporary);
-  Breakpoint *AddBreakpoint(const std::string, const std::string function, bool temporary);
+  Breakpoint *AddBreakpoint(const std::string& file, cell_t addr, bool temporary);
+  Breakpoint *AddBreakpoint(const std::string& file, const std::string& function, bool temporary);
   bool ClearBreakpoint(int number);
   bool ClearBreakpoint(Breakpoint *);
   void ClearAllBreakpoints();
   bool CheckBreakpoint(cell_t cip);
-  int FindBreakpoint(std::string breakpoint);
+  int FindBreakpoint(const std::string& breakpoint);
   void ListBreakpoints();
-  std::string ParseBreakpointLine(std::string input, std::string* filename);
+  const std::string ParseBreakpointLine(const std::string& input, std::string* filename);
   size_t GetBreakpointCount() const;
 
 public:

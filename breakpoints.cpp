@@ -65,18 +65,8 @@ BreakpointManager::CheckBreakpoint(cell_t cip)
 }
 
 Breakpoint *
-BreakpointManager::AddBreakpoint(const std::string file, uint32_t line, bool temporary)
+BreakpointManager::AddBreakpoint(const std::string& file, cell_t addr, bool temporary)
 {
-  std::string targetfile = debugger_->FindFileByPartialName(file);
-  if (targetfile.empty())
-    targetfile = debugger_->currentfile();
-
-  IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
-  // Are there that many lines in the file?
-  uint32_t addr;
-  if (debuginfo->LookupLineAddress(line, targetfile.c_str(), &addr) != SP_ERROR_NONE)
-    return nullptr;
-
   Breakpoint *bp;
   {
     // See if there's already a breakpoint in place here.
@@ -84,7 +74,11 @@ BreakpointManager::AddBreakpoint(const std::string file, uint32_t line, bool tem
     if (p.found())
       return p->value;
 
-    bp = new Breakpoint(debuginfo, addr, nullptr, temporary);
+    const char *realname = nullptr;
+    IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
+    debuginfo->LookupFunction(addr, &realname);
+
+    bp = new Breakpoint(debuginfo, addr, realname, temporary);
     breakpoint_map_.add(p, addr, bp);
   }
 
@@ -92,7 +86,7 @@ BreakpointManager::AddBreakpoint(const std::string file, uint32_t line, bool tem
 }
 
 Breakpoint *
-BreakpointManager::AddBreakpoint(const std::string file, const std::string function, bool temporary)
+BreakpointManager::AddBreakpoint(const std::string& file, const std::string& function, bool temporary)
 {
   std::string targetfile = debugger_->FindFileByPartialName(file);
   if (targetfile.empty())
@@ -155,7 +149,7 @@ BreakpointManager::ClearAllBreakpoints()
 }
 
 int
-BreakpointManager::FindBreakpoint(std::string input)
+BreakpointManager::FindBreakpoint(const std::string& input)
 {
   std::string filename;
   // check if a filename precedes the breakpoint location
@@ -226,12 +220,12 @@ BreakpointManager::ListBreakpoints()
   }
 }
 
-std::string
-BreakpointManager::ParseBreakpointLine(std::string input, std::string* filename)
+const std::string
+BreakpointManager::ParseBreakpointLine(const std::string& input, std::string* filename)
 {
   // check if a filename precedes the breakpoint location
   size_t sep_offs = input.find(':');
-  if (sep_offs > 0) {
+  if (sep_offs != std::string::npos) {
     std::string partial_filename = input.substr(0, sep_offs);
     // the user may have given a partial filename (e.g. without a path), so
     // walk through all files to find a match

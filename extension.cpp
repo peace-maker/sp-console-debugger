@@ -366,19 +366,8 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
       printf("STOP on FATAL exception: %s\n", report->Message());
     else
       printf("STOP on exception: %s\n", report->Message());
-
-    uint32_t line = 0;
-    debuginfo->LookupLine(dbginfo.cip, &line);
-
-    // Remember on which line we halt for the next time.
-    debugger->SetLastLine(line);
-    debugger->SetBreakCount(0);
   }
   else {
-    // Remember which runmode we've been in,
-    // before changing to stepping below.
-    Runmode orig_runmode = debugger->runmode();
-
     // When running until the function returns, 
     // check the current frame address against 
     // the saved one from the function.
@@ -406,27 +395,6 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
       debugger->SetRunmode(Runmode::STEPPING);
     }
 
-    // Count how often we hit a breakpoint on this line.
-    // Don't break multiple times on the same line,
-    // and return to the previous runmode, if we didn't
-    // break on this line more than 5 times already.
-    debugger->SetBreakCount(debugger->breakcount() + 1);
-
-    // Try to avoid halting on the same line twice.
-    uint32_t line = 0;
-    if (debuginfo->LookupLine(dbginfo.cip, &line) == SP_ERROR_NONE) {
-      // Assume that there are no more than 5 breaks on a single line.
-      // If there are, halt.
-      if (line == debugger->lastline() && debugger->breakcount() < 5) {
-        debugger->SetRunmode(orig_runmode);
-        return;
-      }
-    }
-
-    // Remember on which line we halt for the next time.
-    debugger->SetLastLine(line);
-    debugger->SetBreakCount(0);
-
     // If we want to skip calls, check whether
     // we are stepping through a sub-function.
     // The lastframe is set after changing to a STEPOVER or STEPOUT runmode.
@@ -437,6 +405,11 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
         return;
     }
   }
+
+  // Remember on which line we halt.
+  uint32_t line = 0;
+  debuginfo->LookupLine(dbginfo.cip, &line);
+  debugger->SetCurrentLine(line);
 
   // Remember which file we're in.
   const char *filename = nullptr;
