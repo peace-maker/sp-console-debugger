@@ -47,8 +47,8 @@ Debugger::Debugger(IPluginContext *context)
   lastline_(-1),
   currentfile_(nullptr),
   currentfunction_(nullptr),
-  active_(false),
   is_breakpoint_(false),
+  active_(false),
   breakpoints_(this),
   symbols_(this)
 {
@@ -168,7 +168,8 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
       // Extract the first word from the string.
       command = line.substr(0, pos);
       // Optional params start after the command.
-      params = trimString(line.substr(pos + 1));
+      params = line.substr(pos + 1);
+      params = trimString(params);
     }
     
     if (command.empty()) {

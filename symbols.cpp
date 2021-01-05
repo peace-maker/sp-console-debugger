@@ -31,6 +31,7 @@
 #include "symbols.h"
 #include "debugger.h"
 #include <sstream>
+#include <cstring>
 
 bool
 SymbolManager::Initialize() {
@@ -118,42 +119,27 @@ SymbolManager::ListWatches()
   SourcePawn::IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(debugger_->cip());
 
   uint32_t num = 1;
-  std::string symname;
-  int dim;
-  uint32_t idx[sDIMEN_MAX];
-  const char *indexptr;
-  char *behindname = nullptr;
-  std::unique_ptr<SymbolWrapper> sym;
   for (WatchTable::iterator iter = WatchTable::iterator(&watch_table_); !iter.empty(); iter.next()) {
-    symname = *iter;
+    std::string symname = *iter;
 
-    indexptr = strchr(symname.c_str(), '[');
-    behindname = nullptr;
-    dim = 0;
-    memset(idx, 0, sizeof(idx));
+    size_t index_offs = symname.find('[');
+    std::string name = symname;
+
+    if (index_offs != std::string::npos)
+      name = symname.substr(0, index_offs);
+
     // Parse all [x][y] dimensions
-    while (indexptr != nullptr && dim < sDIMEN_MAX) {
-      if (behindname == nullptr)
-        behindname = (char *)indexptr;
-
-      indexptr++;
-      idx[dim++] = atoi(indexptr);
-      indexptr = strchr(indexptr, '[');
+    int dim = 0;
+    uint32_t idx[sDIMEN_MAX];
+    while (index_offs != std::string::npos && dim < sDIMEN_MAX) {
+      idx[dim++] = atoi(symname.substr(index_offs + 1).c_str());
+      index_offs = symname.find('[', index_offs + 1);
     }
-
-    // End the string before the first [ temporarily, 
-    // so FindDebugSymbol only looks for the variable name.
-    if (behindname != nullptr)
-      *behindname = '\0';
 
     // find the symbol with the smallest scope
     symbol_iterator->Reset();
-    sym = FindDebugSymbol(symname.c_str(), debugger_->cip(), symbol_iterator);
+    std::unique_ptr<SymbolWrapper> sym = FindDebugSymbol(name, debugger_->cip(), symbol_iterator);
     if (sym) {
-      // Add the [ back again
-      if (behindname != nullptr)
-        *behindname = '[';
-
       printf("%d  %-12s ", num++, symname.c_str());
       sym->DisplayVariable(idx, dim);
       printf("\n");
@@ -301,9 +287,9 @@ SymbolWrapper::PrintValue(const SourcePawn::ISymbolType* type, long value)
   }
   else if (type->isString()) {
     if (value < 0x20 || value >= 0x7f)
-      printf("'\\x%02x'", value);
+      printf("'\\x%02lx'", value);
     else
-      printf("'%c'", value);
+      printf("'%c'", (char)value);
   }
   else {
     printf("%ld", value);
@@ -318,7 +304,7 @@ SymbolWrapper::ScopeToString()
 {
   SourcePawn::SymbolScope scope = symbol_->scope();
   static const char *scope_names[] = { "glb", "loc", "sta", "arg" };
-  if (scope < 0 || scope >= sizeof(scope_names) / sizeof(scope_names[0]))
+  if (scope < 0 || static_cast<size_t>(scope) >= sizeof(scope_names) / sizeof(scope_names[0]))
     return "unk";
   return scope_names[scope];
 }
@@ -393,7 +379,7 @@ SymbolWrapper::GetSymbolString()
 
   cell_t addr;
   if (!GetEffectiveSymbolAddress(&addr))
-    return false;
+    return nullptr;
 
   char *str;
   if (debugger_->ctx()->LocalToStringNULL(addr, &str) != SP_ERROR_NONE)
@@ -406,7 +392,7 @@ SymbolWrapper::SetSymbolString(const char* value)
 {
   // Make sure we're dealing with a one-dimensional array.
   if (!symbol_->type()->isArray() || symbol_->type()->dimcount() != 1)
-    return nullptr;
+    return false;
 
   cell_t addr;
   if (!GetEffectiveSymbolAddress(&addr))

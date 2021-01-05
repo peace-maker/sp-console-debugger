@@ -175,9 +175,9 @@ BreakpointManager::FindBreakpoint(const std::string& input)
     number++;
 
     // Correct file?
-    if (fname != nullptr && !strcmp(fname, filename.c_str())) {
+    if (fname != nullptr && filename == fname) {
       // A function breakpoint
-      if (bp->name() != nullptr && !strcmp(breakpoint.c_str(), bp->name()))
+      if (bp->name() != nullptr && breakpoint == bp->name())
         return number;
 
       // Line breakpoint
