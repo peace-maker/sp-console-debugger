@@ -45,10 +45,10 @@ class DebuggerCommand {
 public:
   DebuggerCommand(Debugger* debugger, std::vector<std::string> names, const std::string description) : debugger_(debugger), names_(names), description_(description) {}
   virtual ~DebuggerCommand() {}
-  virtual const std::string GetMatch(const std::string command);
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params) = 0;
+  virtual const std::string GetMatch(const std::string& command);
+  virtual CommandResult Accept(const std::string& command, const std::string& params) = 0;
   virtual void ShortHelp();
-  virtual bool LongHelp(const std::string command) {
+  virtual bool LongHelp(const std::string& command) {
     return false;
   }
 
@@ -61,85 +61,85 @@ protected:
 class BacktraceCommand : public DebuggerCommand {
 public:
   BacktraceCommand(Debugger* debugger) : DebuggerCommand(debugger, { "bt", "backtrace" }, "display the stack trace") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
 class BreakpointCommand : public DebuggerCommand {
 public:
   BreakpointCommand(Debugger* debugger) : DebuggerCommand(debugger, {"break", "tbreak", "b"}, "set breakpoint at line number or function name") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
   virtual bool LongHelp(const std::string command);
 };
 
 class ClearBreakpointCommand : public DebuggerCommand {
 public:
   ClearBreakpointCommand(Debugger* debugger) : DebuggerCommand(debugger, { "cbreak" }, "remove breakpoint") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
   virtual bool LongHelp(const std::string command);
 };
 
 class ContinueCommand : public DebuggerCommand {
 public:
   ContinueCommand(Debugger* debugger) : DebuggerCommand(debugger, { "continue", "c" }, "run program (until breakpoint)") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
   virtual bool LongHelp(const std::string command);
 };
 
 class ExamineMemoryCommand : public DebuggerCommand {
 public:
   ExamineMemoryCommand(Debugger* debugger) : DebuggerCommand(debugger, { "x" }, "eXamine plugin memory: x/FMT ADDRESS") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
   virtual bool LongHelp(const std::string command);
 };
 
 class FilesCommand : public DebuggerCommand {
 public:
   FilesCommand(Debugger* debugger) : DebuggerCommand(debugger, { "files" }, "list all files that this program is composed off") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
 class FunctionsCommand : public DebuggerCommand {
 public:
   FunctionsCommand(Debugger* debugger) : DebuggerCommand(debugger, { "funcs", "functions" }, "display functions") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
 class NextCommand : public DebuggerCommand {
 public:
   NextCommand(Debugger* debugger) : DebuggerCommand(debugger, { "next" }, "run until next line, step over functions") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
 class PositionCommand : public DebuggerCommand {
 public:
   PositionCommand(Debugger* debugger) : DebuggerCommand(debugger, { "position" }, "show current file and line") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
 class PrintVariableCommand : public DebuggerCommand {
 public:
   PrintVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "print", "p" }, "display the value of a variable, list variables") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
   virtual bool LongHelp(const std::string command);
 };
 
 class QuitCommand : public DebuggerCommand {
 public:
   QuitCommand(Debugger* debugger) : DebuggerCommand(debugger, { "quit", "exit" }, "exit debugger") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
 class SetVariableCommand : public DebuggerCommand {
 public:
   SetVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "set" }, "set a variable to a value") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
   virtual bool LongHelp(const std::string command);
 };
 
 class StepCommand : public DebuggerCommand {
 public:
   StepCommand(Debugger* debugger) : DebuggerCommand(debugger, { "step" }, "single step, step into functions") {}
-  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
 #endif // _INCLUDE_DEBUGGER_COMMAND_H

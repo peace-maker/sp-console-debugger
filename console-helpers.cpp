@@ -119,28 +119,6 @@ ResetEngineWatchdog(unsigned int timeout)
 }
 #endif
 
-char *
-TrimString(char *string)
-{
-  int pos;
-
-  /* strip leading white space */
-  while (*string != '\0' && *string <= ' ')
-    memmove(string, string + 1, strlen(string));
-  /* strip trailing white space */
-  for (pos = strlen(string); pos>0 && string[pos - 1] <= ' '; pos--)
-    string[pos - 1] = '\0';
-  return string;
-}
-
-char *
-SkipWhitespace(char *str)
-{
-  while (*str == ' ' || *str == '\t')
-    str++;
-  return (char*)str;
-}
-
 const char *
 SkipPath(const char *str)
 {
@@ -162,4 +140,21 @@ SkipPath(const char *str)
   else
     p2 = str;
   return p1>p2 ? p1 : p2;
+}
+
+std::string& leftTrim(std::string& str, std::string chars)
+{
+  str.erase(0, str.find_first_not_of(chars));
+  return str;
+}
+
+std::string& rightTrim(std::string& str, std::string chars)
+{
+  str.erase(str.find_last_not_of(chars) + 1);
+  return str;
+}
+
+std::string& trimString(std::string& str, std::string chars)
+{
+  return leftTrim(rightTrim(str, chars), chars);
 }

@@ -36,7 +36,7 @@
 using namespace SourcePawn;
 
 const std::string
-DebuggerCommand::GetMatch(const std::string command) {
+DebuggerCommand::GetMatch(const std::string& command) {
   // Check if any of the command names start with the given command input.
   std::string best_match;
   for (auto& name : names_) {
@@ -54,21 +54,21 @@ DebuggerCommand::ShortHelp() {
 }
 
 CommandResult
-BacktraceCommand::Accept(const std::string command, std::vector<std::string> params) {
+BacktraceCommand::Accept(const std::string& command, const std::string& params) {
   fputs("Stack trace:", stdout);
   debugger_->DumpStack();
   return CR_StayCommandLoop;
 }
 
 CommandResult
-BreakpointCommand::Accept(const std::string command, std::vector<std::string> params) {
+BreakpointCommand::Accept(const std::string& command, const std::string& params) {
   if (params.empty()) {
     debugger_->breakpoints().ListBreakpoints();
     return CR_StayCommandLoop;
   }
   
   std::string filename = debugger_->currentfile();
-  std::string breakpoint_location = debugger_->breakpoints().ParseBreakpointLine(params[0], &filename);
+  std::string breakpoint_location = debugger_->breakpoints().ParseBreakpointLine(params, &filename);
   if (breakpoint_location.empty())
     return CR_StayCommandLoop;
 
@@ -116,19 +116,19 @@ BreakpointCommand::LongHelp(const std::string command) {
 }
 
 CommandResult
-ClearBreakpointCommand::Accept(const std::string command, std::vector<std::string> params) {
+ClearBreakpointCommand::Accept(const std::string& command, const std::string& params) {
   if (params.empty()) {
     std::cout << "\tInvalid syntax. Type \"? cbreak\" for help.\n";
     return CR_StayCommandLoop;
   }
 
-  if (params[0] == "*") {
+  if (params == "*") {
     size_t num_bps = debugger_->breakpoints().GetBreakpointCount();
     debugger_->breakpoints().ClearAllBreakpoints();
     std::cout << "\tCleared all " << num_bps << " breakpoints.\n";
   }
   else {
-    int number = debugger_->breakpoints().FindBreakpoint(params[0]);
+    int number = debugger_->breakpoints().FindBreakpoint(params);
     if (number < 0 || !debugger_->breakpoints().ClearBreakpoint(number))
       std::cout << "\tUnknown breakpoint (or wrong syntax)\n";
     else
@@ -146,10 +146,10 @@ ClearBreakpointCommand::LongHelp(const std::string command) {
 }
 
 CommandResult
-ContinueCommand::Accept(const std::string command, std::vector<std::string> params) {
+ContinueCommand::Accept(const std::string& command, const std::string& params) {
   if (!params.empty()) {
     // "continue func" runs until the function returns.
-    if (!stricmp(params[0].c_str(), "func")) {
+    if (!stricmp(params.c_str(), "func")) {
       debugger_->SetRunmode(STEPOUT);
       return CR_LeaveCommandLoop;
     }
@@ -157,7 +157,7 @@ ContinueCommand::Accept(const std::string command, std::vector<std::string> para
     // There is a parameter given -> run until that line!
     std::string filename = debugger_->currentfile();
     // ParseBreakpointLine prints an error.
-    std::string breakpoint_location = debugger_->breakpoints().ParseBreakpointLine(params[0], &filename);
+    std::string breakpoint_location = debugger_->breakpoints().ParseBreakpointLine(params, &filename);
     if (breakpoint_location.empty())
       return CR_StayCommandLoop;
 
@@ -196,16 +196,11 @@ ContinueCommand::LongHelp(const std::string command) {
 
 // Mimic GDB's |x| command.
 CommandResult
-ExamineMemoryCommand::Accept(const std::string command, std::vector<std::string> params) {
+ExamineMemoryCommand::Accept(const std::string& command, const std::string& params) {
   // Just "x" is invalid.
   // TODO: Default options and remember previous selection.
   if (params.empty()) {
     fputs("Missing address.\n", stdout);
-    return CR_StayCommandLoop;
-  }
-
-  if (params.size() > 1) {
-    fputs("Warning: excessive parameter. Only one is accepted\n", stdout);
     return CR_StayCommandLoop;
   }
 
@@ -288,9 +283,8 @@ ExamineMemoryCommand::Accept(const std::string command, std::vector<std::string>
   // $hp: heap pointer
   // $frm: frame pointer
   cell_t address = 0;
-  std::string param = params[0];
-  if (param[0] == '$') {
-    if (!stricmp(param.c_str(), "$cip")) {
+  if (params[0] == '$') {
+    if (!stricmp(params.c_str(), "$cip")) {
       address = debugger_->cip();
     }
     // TODO: adjust for selected frame like frm_.
@@ -300,17 +294,17 @@ ExamineMemoryCommand::Accept(const std::string command, std::vector<std::string>
     else if (!stricmp(params, "$hp")) {
       address = selected_context_->hp();
     }*/
-    else if (!stricmp(param.c_str(), "$frm")) {
+    else if (!stricmp(params.c_str(), "$frm")) {
       address = debugger_->frm();
     }
     else {
-      std::cout << "Unknown address" << param << ".\n";
+      std::cout << "Unknown address" << params << ".\n";
       return CR_StayCommandLoop;
     }
   }
   // This is a raw address.
   else {
-    address = (cell_t)strtol(param.c_str(), NULL, 0);
+    address = (cell_t)strtol(params.c_str(), NULL, 0);
   }
 
   // Make sure we just read the plugin's memory.
@@ -410,7 +404,7 @@ ExamineMemoryCommand::LongHelp(const std::string command) {
 }
 
 CommandResult
-FilesCommand::Accept(const std::string command, std::vector<std::string> params) {
+FilesCommand::Accept(const std::string& command, const std::string& params) {
   fputs("Source files:\n", stdout);
   // Browse through the file table
   IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
@@ -423,7 +417,7 @@ FilesCommand::Accept(const std::string command, std::vector<std::string> params)
 }
 
 CommandResult
-FunctionsCommand::Accept(const std::string command, std::vector<std::string> params) {
+FunctionsCommand::Accept(const std::string& command, const std::string& params) {
   fputs("Listing functions:\n", stdout);
 
   // Run through all functions with a name and 
@@ -444,25 +438,25 @@ FunctionsCommand::Accept(const std::string command, std::vector<std::string> par
 }
 
 CommandResult
-NextCommand::Accept(const std::string command, std::vector<std::string> params) {
+NextCommand::Accept(const std::string& command, const std::string& params) {
   debugger_->SetRunmode(STEPOVER);
   return CR_LeaveCommandLoop;
 }
 
 CommandResult
-PositionCommand::Accept(const std::string command, std::vector<std::string> params) {
+PositionCommand::Accept(const std::string& command, const std::string& params) {
   debugger_->PrintCurrentPosition();
   return CR_StayCommandLoop;
 }
 
 CommandResult
-PrintVariableCommand::Accept(const std::string command, std::vector<std::string> params) {
+PrintVariableCommand::Accept(const std::string& command, const std::string& params) {
   uint32_t idx[sDIMEN_MAX];
   memset(idx, 0, sizeof(idx));
   IPluginDebugInfo *debuginfo = debugger_->ctx()->GetRuntime()->GetDebugInfo();
 
   IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(debugger_->cip());
-  if (params.empty() || params[0] == "*") {
+  if (params.empty() || params == "*") {
     // Display all variables that are in scope
     while (!symbol_iterator->Done()) {
       std::unique_ptr<SymbolWrapper> sym = std::make_unique<SymbolWrapper>(debugger_, symbol_iterator->Next());
@@ -484,25 +478,24 @@ PrintVariableCommand::Accept(const std::string command, std::vector<std::string>
   }
   // Display a single variable with the given name.
   else {
-    std::string param = params[0];
-    size_t index_offs = param.find('[');
-    std::string name = param;
+    size_t index_offs = params.find('[');
+    std::string name = params;
 
     if (index_offs != std::string::npos)
-      name = param.substr(0, index_offs);
+      name = params.substr(0, index_offs);
 
     // Parse all [x][y] dimensions
     int dim = 0;
     while (index_offs != std::string::npos && dim < sDIMEN_MAX) {
-      idx[dim++] = atoi(param.substr(index_offs+1).c_str());
-      index_offs = param.find('[', index_offs+1);
+      idx[dim++] = atoi(params.substr(index_offs+1).c_str());
+      index_offs = params.find('[', index_offs+1);
     }
 
     // find the symbol with the smallest scope
     std::unique_ptr<SymbolWrapper> sym = debugger_->symbols().FindDebugSymbol(name, debugger_->cip(), symbol_iterator);
     if (sym) {
       // Print variable address and name.
-      printf("%s\t<%#8x>\t%s\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address(), param.c_str());
+      printf("%s\t<%#8x>\t%s\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address(), params.c_str());
       // Print variable value.
       sym->DisplayVariable(idx, dim);
       fputs("\n", stdout);
@@ -526,15 +519,14 @@ PrintVariableCommand::LongHelp(const std::string command) {
 }
 
 CommandResult
-QuitCommand::Accept(const std::string command, std::vector<std::string> params) {
+QuitCommand::Accept(const std::string& command, const std::string& params) {
   fputs("Clearing all breakpoints. Running normally.\n", stdout);
   debugger_->Deactivate();
   return CR_LeaveCommandLoop;
 }
 
 CommandResult
-SetVariableCommand::Accept(const std::string command, std::vector<std::string> params) {
-#if 0
+SetVariableCommand::Accept(const std::string& command, const std::string& params) {
   IPluginDebugInfo *debuginfo = debugger_->ctx()->GetRuntime()->GetDebugInfo();
   IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(debugger_->cip());
 
@@ -544,12 +536,12 @@ SetVariableCommand::Accept(const std::string command, std::vector<std::string> p
   strvalue[0] = '\0';
   uint32_t index;
   cell_t value;
-  if (sscanf(params, " %31[^[ ][%d] = %d", varname, &index, &value) != 3) {
+  if (sscanf(params.c_str(), " %31[^[ ][%d] = %d", varname, &index, &value) != 3) {
     index = 0;
     // Normal variable number assign
-    if (sscanf(params, " %31[^= ] = %d", varname, &value) != 2) {
+    if (sscanf(params.c_str(), " %31[^= ] = %d", varname, &value) != 2) {
       // String assign
-      if (sscanf(params, " %31[^= ] = \"%1023[^\"]\"", varname, strvalue) != 2) {
+      if (sscanf(params.c_str(), " %31[^= ] = \"%1023[^\"]\"", varname, strvalue) != 2) {
         varname[0] = '\0';
         strvalue[0] = '\0';
       }
@@ -597,7 +589,6 @@ SetVariableCommand::Accept(const std::string command, std::vector<std::string> p
     fputs("Invalid syntax for \"set\". Type \"? set\".\n", stdout);
   }
   debuginfo->DestroySymbolIterator(symbol_iterator);
-#endif
   return CR_StayCommandLoop;
 }
 
@@ -610,7 +601,7 @@ SetVariableCommand::LongHelp(const std::string command) {
 }
 
 CommandResult
-StepCommand::Accept(const std::string command, std::vector<std::string> params) {
+StepCommand::Accept(const std::string& command, const std::string& params) {
   debugger_->SetRunmode(STEPPING);
   return CR_LeaveCommandLoop;
 }

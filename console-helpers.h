@@ -28,13 +28,17 @@
 *
 * Version: $Id$
 */
+#ifndef _INCLUDE_DEBUGGER_HELPERS_H
+#define _INCLUDE_DEBUGGER_HELPERS_H
 
 #include <amtl/am-platform.h>
+#include <string>
 
 unsigned int EnableTerminalEcho();
 void ResetTerminalEcho(unsigned int mode);
 unsigned int DisableEngineWatchdog();
 void ResetEngineWatchdog(unsigned int timeout);
-char *TrimString(char *string);
-char *SkipWhitespace(char *str);
 const char *SkipPath(const char *str);
+std::string& trimString(std::string& str, std::string chars = " \t\r\n");
+
+#endif // _INCLUDE_DEBUGGER_HELPERS_H

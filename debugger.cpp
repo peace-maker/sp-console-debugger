@@ -136,14 +136,14 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
   // Print all watched variables now.
   ListWatches();
 
-  std::string line, command;
-  std::vector<std::string> params;
+  std::string line, command, params;
   for (;;) {
     // Show a debugger prompt.
     std::cout << "dbg> ";
 
     // Read debugger command.
     std::getline(std::cin, line);
+    line = trimString(line);
 
     // Repeat the last command, if no new command was given.
     if (line.empty()) {
@@ -151,20 +151,27 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
     }
     lastcommand.clear();
 
-    // Extract the first word from the string.
-    std::istringstream iss(line);
-    iss >> command;
+    // Split the line into "<command> <params...>"
+    size_t pos = line.find_first_of(" ");
+    if (pos == std::string::npos) {
+      command = line;
+      params = "";
+    }
+    else {
+      // Extract the first word from the string.
+      command = line.substr(0, pos);
+      // Optional params start after the command.
+      params = trimString(line.substr(pos + 1));
+    }
+    
     if (command.empty()) {
       ListCommands("");
       continue;
     }
 
-    // Optional params start after the command.
-    params = std::vector<std::string>(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>());
-
     // Handle inbuilt help command.
     if (!stricmp(command.c_str(), "?") || !stricmp(command.c_str(), "help")) {
-      ListCommands(!params.empty() ? params[0] : "");
+      ListCommands(!params.empty() ? params : "");
       continue;
     }
 
