@@ -85,6 +85,13 @@ public:
   virtual bool LongHelp(const std::string command);
 };
 
+class ExamineMemoryCommand : public DebuggerCommand {
+public:
+  ExamineMemoryCommand(Debugger* debugger) : DebuggerCommand(debugger, { "x" }, "eXamine plugin memory: x/FMT ADDRESS") {}
+  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual bool LongHelp(const std::string command);
+};
+
 class FilesCommand : public DebuggerCommand {
 public:
   FilesCommand(Debugger* debugger) : DebuggerCommand(debugger, { "files" }, "list all files that this program is composed off") {}
@@ -109,10 +116,24 @@ public:
   virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
 };
 
+class PrintVariableCommand : public DebuggerCommand {
+public:
+  PrintVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "print", "p" }, "display the value of a variable, list variables") {}
+  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual bool LongHelp(const std::string command);
+};
+
 class QuitCommand : public DebuggerCommand {
 public:
   QuitCommand(Debugger* debugger) : DebuggerCommand(debugger, { "quit", "exit" }, "exit debugger") {}
   virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+};
+
+class SetVariableCommand : public DebuggerCommand {
+public:
+  SetVariableCommand(Debugger* debugger) : DebuggerCommand(debugger, { "set" }, "set a variable to a value") {}
+  virtual CommandResult Accept(const std::string command, std::vector<std::string> params);
+  virtual bool LongHelp(const std::string command);
 };
 
 class StepCommand : public DebuggerCommand {

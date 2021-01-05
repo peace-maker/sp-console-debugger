@@ -39,6 +39,7 @@
 #include "amtl/am-hashmap.h"
 #include "console-helpers.h"
 #include "breakpoints.h"
+#include "symbols.h"
 
 enum Runmode {
   STEPPING, /* step into functions */
@@ -47,8 +48,6 @@ enum Runmode {
   RUNNING, /* just run */
 };
 
-class Breakpoint;
-class BreakpointManager;
 class DebuggerCommand;
 
 class Debugger {
@@ -67,12 +66,9 @@ public:
 
 private:
   //void HandleFrameCmd(char *params);
-  void HandleVariableDisplayCmd(char *params);
-  void HandleSetVariableCmd(char *params);
  // void HandleDisplayFormatChangeCmd(char *params);
   void HandleWatchCmd(char *params);
   void HandleClearWatchCmd(char *params);
-  void HandleDumpMemoryCmd(char *command, char *params);
 
 public:
   Runmode runmode() const {
@@ -114,6 +110,18 @@ public:
   BreakpointManager& breakpoints() {
     return breakpoints_;
   }
+  SymbolManager& symbols() {
+    return symbols_;
+  }
+  cell_t cip() const {
+    return cip_;
+  }
+  cell_t frm() const {
+    return frm_;
+  }
+  SourcePawn::IPluginContext* ctx() const {
+    return selected_context_;
+  }
 
   void DumpStack();
   void PrintCurrentPosition();
@@ -122,16 +130,6 @@ public:
 private:
   std::shared_ptr<DebuggerCommand> ResolveCommandString(const std::string command);
 
-  void PrintValue(const SourcePawn::ISymbolType* type, long value);
-  void DisplayVariable(const SourcePawn::IDebugSymbol *sym, uint32_t index[], uint32_t idxlevel);
-  const SourcePawn::IDebugSymbol *FindDebugSymbol(const char* name, cell_t scopeaddr, SourcePawn::IDebugSymbolIterator* symbol_iterator);
-  
-  bool GetSymbolValue(const SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t* value);
-  bool SetSymbolValue(const SourcePawn::IDebugSymbol *sym, uint32_t index, cell_t value);
-  const char* GetSymbolString(const SourcePawn::IDebugSymbol *sym);
-  bool SetSymbolString(const SourcePawn::IDebugSymbol *sym, const char* value);
-  bool GetEffectiveSymbolAddress(const SourcePawn::IDebugSymbol *sym, cell_t *address);
-
   bool AddWatch(const char *symname);
   bool ClearWatch(const char *symname);
   bool ClearWatch(uint32_t num);
@@ -139,8 +137,6 @@ private:
   void ListWatches();
 
 private:
-  const char *ScopeToString(SourcePawn::SymbolScope scope);
-
   struct WatchTablePolicy {
     typedef std::string Payload;
 
@@ -167,6 +163,7 @@ private:
   bool active_;
   std::vector<std::shared_ptr<DebuggerCommand>> commands_;
   BreakpointManager breakpoints_;
+  SymbolManager symbols_;
 
   // Temporary variables to use inside command loop
   cell_t cip_;

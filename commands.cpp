@@ -31,6 +31,7 @@
 #include "commands.h"
 #include "debugger.h"
 #include <iostream>
+#include <amtl/am-string.h>
 
 using namespace SourcePawn;
 
@@ -193,6 +194,221 @@ ContinueCommand::LongHelp(const std::string command) {
   return true;
 }
 
+// Mimic GDB's |x| command.
+CommandResult
+ExamineMemoryCommand::Accept(const std::string command, std::vector<std::string> params) {
+  // Just "x" is invalid.
+  // TODO: Default options and remember previous selection.
+  if (params.empty()) {
+    fputs("Missing address.\n", stdout);
+    return CR_StayCommandLoop;
+  }
+
+  if (params.size() > 1) {
+    fputs("Warning: excessive parameter. Only one is accepted\n", stdout);
+    return CR_StayCommandLoop;
+  }
+
+  // Format is x/[count][format][size] <address>
+  // We require a slash.
+  if (command[1] != '/') {
+    fputs("Bad format specifier.\n", stdout);
+    return CR_StayCommandLoop;
+  }
+  size_t fmt_idx = 2;
+
+  // Skip count number
+  while (isdigit(command[fmt_idx])) {
+    fmt_idx++;
+  }
+
+  // Default count is 1.
+  int count = 1;
+  // Parse [count] number. The amount of stuff to display.
+  if (fmt_idx != 2) {
+    count = atoi(command.substr(2).c_str());
+    if (count <= 0) {
+      fputs("Invalid count.\n", stdout);
+      return CR_StayCommandLoop;
+    }
+  }
+
+  // Format letters are o(octal), x(hex), d(decimal), u(unsigned decimal)
+  // t(binary), f(float), a(address), i(instruction), c(char) and s(string).
+  char format = command[fmt_idx++];
+  if (format != 'o' && format != 'x' && format != 'd' &&
+    format != 'u' && format != 'f' && format != 'c' &&
+    format != 's') {
+    printf("Invalid format letter '%c'.\n", format);
+    return CR_StayCommandLoop;
+  }
+
+  // Size letters are b(byte), h(halfword), w(word).
+  char size_ltr = command[fmt_idx];
+
+  unsigned int size;
+  unsigned int line_break;
+  unsigned int mask;
+  switch (size_ltr) {
+  case 'b':
+    size = 1;
+    line_break = 8;
+    mask = 0x000000ff;
+    break;
+  case 'h':
+    size = 2;
+    line_break = 8;
+    mask = 0x0000ffff;
+    break;
+  case 'w':
+    // Default size is a word, if none was given.
+  case '\0':
+    size = 4;
+    line_break = 4;
+    mask = 0xffffffff;
+    break;
+  default:
+    printf("Invalid size letter '%c'.\n", size_ltr);
+    return CR_StayCommandLoop;
+  }
+
+  // Skip the size letter.
+  if (size_ltr != '\0')
+    fmt_idx++;
+
+  if (command[fmt_idx]) {
+    fputs("Invalid output format string.\n", stdout);
+    return CR_StayCommandLoop;
+  }
+
+  // Parse address.
+  // We support 4 "magic" addresses:
+  // $cip: instruction pointer
+  // $sp: stack pointer
+  // $hp: heap pointer
+  // $frm: frame pointer
+  cell_t address = 0;
+  std::string param = params[0];
+  if (param[0] == '$') {
+    if (!stricmp(param.c_str(), "$cip")) {
+      address = debugger_->cip();
+    }
+    // TODO: adjust for selected frame like frm_.
+    /*else if (!stricmp(params, "$sp")) {
+      address = selected_context_->sp();
+    }
+    else if (!stricmp(params, "$hp")) {
+      address = selected_context_->hp();
+    }*/
+    else if (!stricmp(param.c_str(), "$frm")) {
+      address = debugger_->frm();
+    }
+    else {
+      std::cout << "Unknown address" << param << ".\n";
+      return CR_StayCommandLoop;
+    }
+  }
+  // This is a raw address.
+  else {
+    address = (cell_t)strtol(param.c_str(), NULL, 0);
+  }
+
+  // Make sure we just read the plugin's memory.
+  if (debugger_->ctx()->LocalToPhysAddr(address, nullptr) != SP_ERROR_NONE) {
+    fputs("Address out of plugin's bounds.\n", stdout);
+    return CR_StayCommandLoop;
+  }
+
+  // Print the memory
+  // Create a format string for the desired output format.
+  char fmt_string[16];
+  switch (format) {
+  case 'd':
+  case 'u':
+    ke::SafeSprintf(fmt_string, sizeof(fmt_string), "%%%d%c", size * 2, format);
+    break;
+  case 'o':
+    ke::SafeSprintf(fmt_string, sizeof(fmt_string), "0%%0%d%c", size * 2, format);
+    break;
+  case 'x':
+    ke::SafeSprintf(fmt_string, sizeof(fmt_string), "0x%%0%d%c", size * 2, format);
+    break;
+  case 's':
+    ke::SafeStrcpy(fmt_string, sizeof(fmt_string), "\"%s\"");
+    break;
+  case 'c':
+    ke::SafeStrcpy(fmt_string, sizeof(fmt_string), "'%c'");
+    break;
+  case 'f':
+    ke::SafeStrcpy(fmt_string, sizeof(fmt_string), "%.2f");
+    break;
+  default:
+    assert(false);
+    return CR_StayCommandLoop;
+  }
+
+  // Put |count| blocks of formated data on the console.
+  cell_t *data;
+  for (int i = 0; i < count; i++) {
+
+    // Stop when reading out of bounds.
+    // Get the data pointer we want to print.
+    if (debugger_->ctx()->LocalToPhysAddr(address, &data) != SP_ERROR_NONE)
+      break;
+
+    // Put |line_break| blocks in one line.
+    if (i % line_break == 0) {
+      if (i > 0)
+        fputs("\n", stdout);
+      printf("0x%x: ", address);
+    }
+
+    // Print the data according to the specified format identifer.
+    switch (format) {
+    case 'f':
+      printf(fmt_string, sp_ctof(*data));
+      break;
+    case 'd':
+    case 'u':
+    case 'o':
+    case 'x':
+      printf(fmt_string, *data & mask);
+      break;
+    case 's':
+      printf(fmt_string, (char*)data);
+      break;
+    default:
+      printf(fmt_string, *data);
+      break;
+    }
+
+    fputs("  ", stdout);
+
+    // Move to the next address based on the size;
+    address += size;
+  }
+
+  fputs("\n", stdout);
+  return CR_StayCommandLoop;
+}
+
+bool
+ExamineMemoryCommand::LongHelp(const std::string command) {
+ std::cout << "\tX/FMT ADDRESS\texamine plugin memory at \"ADDRESS\"\n"
+    "\tADDRESS is an expression for the memory address to examine.\n"
+    "\tFMT is a repeat count followed by a format letter and a size letter.\n"
+    "\t\tFormat letters are o(octal), x(hex), d(decimal), u(unsigned decimal),\n"
+    "\t\t\tf(float), c(char) and s(string).\n"
+    "\t\tSize letters are b(byte), h(halfword), w(word).\n\n"
+    "\t\tThe specified number of objects of the specified size are printed\n"
+    "\t\taccording to the format.\n\n"
+    //"\tDefaults for format and size letters are those previously used.\n"
+    //"\tDefault count is 1.  Default address is following last thing printed\n"
+    //"\twith this command or \"disp\".\n"
+  ;
+  return true;
+}
+
 CommandResult
 FilesCommand::Accept(const std::string command, std::vector<std::string> params) {
   fputs("Source files:\n", stdout);
@@ -240,10 +456,157 @@ PositionCommand::Accept(const std::string command, std::vector<std::string> para
 }
 
 CommandResult
+PrintVariableCommand::Accept(const std::string command, std::vector<std::string> params) {
+  uint32_t idx[sDIMEN_MAX];
+  memset(idx, 0, sizeof(idx));
+  IPluginDebugInfo *debuginfo = debugger_->ctx()->GetRuntime()->GetDebugInfo();
+
+  IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(debugger_->cip());
+  if (params.empty() || params[0] == "*") {
+    // Display all variables that are in scope
+    while (!symbol_iterator->Done()) {
+      std::unique_ptr<SymbolWrapper> sym = std::make_unique<SymbolWrapper>(debugger_, symbol_iterator->Next());
+
+      // Skip global variables in this list.
+      if (params.empty() && sym->symbol()->scope() == Global)
+        continue;
+
+      // Print the name and address
+      printf("%s\t<%#8x>\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address());
+      if (sym->symbol()->name() != nullptr) {
+        printf("%s\t", sym->symbol()->name());
+      }
+
+      // Print the value.
+      sym->DisplayVariable(idx, 0);
+      fputs("\n", stdout);
+    }
+  }
+  // Display a single variable with the given name.
+  else {
+    std::string param = params[0];
+    size_t index_offs = param.find('[');
+    std::string name = param;
+
+    if (index_offs != std::string::npos)
+      name = param.substr(0, index_offs);
+
+    // Parse all [x][y] dimensions
+    int dim = 0;
+    while (index_offs != std::string::npos && dim < sDIMEN_MAX) {
+      idx[dim++] = atoi(param.substr(index_offs+1).c_str());
+      index_offs = param.find('[', index_offs+1);
+    }
+
+    // find the symbol with the smallest scope
+    std::unique_ptr<SymbolWrapper> sym = debugger_->symbols().FindDebugSymbol(name, debugger_->cip(), symbol_iterator);
+    if (sym) {
+      // Print variable address and name.
+      printf("%s\t<%#8x>\t%s\t", sym->ScopeToString(), (sym->symbol()->scope() == Local || sym->symbol()->scope() == Argument) ? debugger_->frm() + sym->symbol()->address() : sym->symbol()->address(), param.c_str());
+      // Print variable value.
+      sym->DisplayVariable(idx, dim);
+      fputs("\n", stdout);
+    }
+    else {
+      fputs("\tSymbol not found, or not a variable\n", stdout);
+    }
+  }
+  debuginfo->DestroySymbolIterator(symbol_iterator);
+  return CR_StayCommandLoop;
+}
+
+bool
+PrintVariableCommand::LongHelp(const std::string command) {
+  std::cout << "\tPRINT may be abbreviated to P\n\n"
+    "\tPRINT\t\tdisplay all local variables that are currently in scope\n"
+    "\tPRINT *\tdisplay all variables that are currently in scope including global variables\n"
+    "\tPRINT var\tdisplay the value of variable \"var\"\n"
+    "\tPRINT var[i]\tdisplay the value of array element \"var[i]\"\n";
+  return true;
+}
+
+CommandResult
 QuitCommand::Accept(const std::string command, std::vector<std::string> params) {
   fputs("Clearing all breakpoints. Running normally.\n", stdout);
   debugger_->Deactivate();
   return CR_LeaveCommandLoop;
+}
+
+CommandResult
+SetVariableCommand::Accept(const std::string command, std::vector<std::string> params) {
+#if 0
+  IPluginDebugInfo *debuginfo = debugger_->ctx()->GetRuntime()->GetDebugInfo();
+  IDebugSymbolIterator* symbol_iterator = debuginfo->CreateSymbolIterator(debugger_->cip());
+
+  // TODO: Allow float assignments.
+  // See if this is an array assignment. Only supports single dimensional arrays.
+  char varname[32], strvalue[1024];
+  strvalue[0] = '\0';
+  uint32_t index;
+  cell_t value;
+  if (sscanf(params, " %31[^[ ][%d] = %d", varname, &index, &value) != 3) {
+    index = 0;
+    // Normal variable number assign
+    if (sscanf(params, " %31[^= ] = %d", varname, &value) != 2) {
+      // String assign
+      if (sscanf(params, " %31[^= ] = \"%1023[^\"]\"", varname, strvalue) != 2) {
+        varname[0] = '\0';
+        strvalue[0] = '\0';
+      }
+    }
+  }
+
+  if (varname[0] != '\0') {
+    // Find the symbol within the given range with the smallest scope.
+    std::unique_ptr<SymbolWrapper> sym = debugger_->symbols().FindDebugSymbol(varname, debugger_->cip(), symbol_iterator);
+    if (sym) {
+      // User gave an integer as value
+      if (strvalue[0] == '\0') {
+        if (sym->SetSymbolValue(index, value)) {
+          if (index > 0)
+            printf("%s[%d] set to %d\n", varname, index, value);
+          else
+            printf("%s set to %d\n", varname, value);
+        }
+        else {
+          if (index > 0)
+            printf("Failed to set %s[%d] to %d\n", varname, index, value);
+          else
+            printf("Failed to set %s to %d\n", varname, value);
+        }
+      }
+      // We have a string as value
+      else {
+        if (!sym->symbol()->type()->isArray()
+          || sym->symbol()->type()->dimcount() != 1) {
+          printf("%s is not a string.\n", varname);
+        }
+        else {
+          if (sym->SetSymbolString(strvalue))
+            printf("%s set to \"%s\"\n", varname, strvalue);
+          else
+            printf("Failed to set %s to \"%s\"\n", varname, strvalue);
+        }
+      }
+    }
+    else {
+      fputs("Symbol not found or not a variable\n", stdout);
+    }
+  }
+  else {
+    fputs("Invalid syntax for \"set\". Type \"? set\".\n", stdout);
+  }
+  debuginfo->DestroySymbolIterator(symbol_iterator);
+#endif
+  return CR_StayCommandLoop;
+}
+
+bool
+SetVariableCommand::LongHelp(const std::string command) {
+  std::cout << "\tSET var=value\t\tset variable \"var\" to the numeric value \"value\"\n"
+    "\tSET var[i]=value\tset array item \"var\" to a numeric value\n"
+    "\tSET var=\"value\"\t\tset string variable \"var\" to string \"value\"\n";
+  return true;
 }
 
 CommandResult
