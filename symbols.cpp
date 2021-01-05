@@ -299,6 +299,12 @@ SymbolWrapper::PrintValue(const SourcePawn::ISymbolType* type, long value)
       break;
     }
   }
+  else if (type->isString()) {
+    if (value < 0x20 || value >= 0x7f)
+      printf("'\\x%02x'", value);
+    else
+      printf("'%c'", value);
+  }
   else {
     printf("%ld", value);
   }
@@ -332,13 +338,22 @@ SymbolWrapper::GetSymbolValue(uint32_t index, cell_t* value)
   if (!GetEffectiveSymbolAddress(&addr))
     return false;
 
+  // Support indexing into string.
+  uint32_t element_size = sizeof(cell_t);
+  if (symbol_->type()->isString())
+    element_size = sizeof(char);
+
   // Resolve index into array.
   cell_t *vptr;
-  if (debugger_->ctx()->LocalToPhysAddr(addr + index * sizeof(cell_t), &vptr) != SP_ERROR_NONE)
+  if (debugger_->ctx()->LocalToPhysAddr(addr + index * element_size, &vptr) != SP_ERROR_NONE)
     return false;
 
-  if (vptr != nullptr)
+  if (vptr != nullptr) {
     *value = *vptr;
+    // Only return the requested character.
+    if (symbol_->type()->isString())
+      *value &= 0xff;
+  }
 
   return vptr != nullptr;
 }
