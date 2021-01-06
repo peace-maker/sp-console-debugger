@@ -183,7 +183,7 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
       rootconsole->ConsolePrint("[SM] Usage: sm debug bp <#|file> <option>");
       rootconsole->DrawGenericOption("list", "List breakpoints");
       rootconsole->DrawGenericOption("add", "Add a breakpoint");
-      rootconsole->DrawGenericOption("clear", "Remove a breakpoint");
+      rootconsole->DrawGenericOption("remove", "Remove a breakpoint");
       return;
     }
 
@@ -252,18 +252,18 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
         rootconsole->ConsolePrint("[SM] Added breakpoint in file %s on line %d", bp->filename(), bp->line());
     }
     // Remove a breakpoint for a plugin.
-    else if (!strcmp(arg, "clear")) {
+    else if (!strcmp(arg, "remove")) {
       if (argcount < 6) {
-        rootconsole->ConsolePrint("[SM] Usage: sm debug bp <#|file> clear <#>");
+        rootconsole->ConsolePrint("[SM] Usage: sm debug bp <#|file> remove <#>");
         return;
       }
 
       const char *bpstr = args->Arg(5);
       int bpnum = strtoul(bpstr, NULL, 10);
       if (breakpoints.ClearBreakpoint(bpnum))
-        rootconsole->ConsolePrint("[SM] Breakpoint cleared.");
+        rootconsole->ConsolePrint("[SM] Breakpoint removed.");
       else
-        rootconsole->ConsolePrint("[SM] Failed to clear breakpoint.");
+        rootconsole->ConsolePrint("[SM] Failed to remove breakpoint.");
     }
   }
 }
