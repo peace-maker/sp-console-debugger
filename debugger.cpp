@@ -58,6 +58,7 @@ Debugger::Debugger(IPluginContext *context)
   commands_.push_back(std::make_shared<ClearWatchVariableCommand>(this));
   commands_.push_back(std::make_shared<ContinueCommand>(this));
   commands_.push_back(std::make_shared<FilesCommand>(this));
+  commands_.push_back(std::make_shared<FrameCommand>(this));
   commands_.push_back(std::make_shared<FunctionsCommand>(this));
   commands_.push_back(std::make_shared<NextCommand>(this));
   commands_.push_back(std::make_shared<PositionCommand>(this));
@@ -124,6 +125,9 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
   // Select first scripted frame, if it's not frame 0
   bool selected_first_scripted = false;
   for (; !frames->Done(); frames->Next(), frame_count_++) {
+    if (frames->IsInternalFrame())
+      continue;
+
     if (!selected_first_scripted && frames->IsScriptedFrame()) {
       selected_frame_ = frame_count_;
       selected_first_scripted = true;
@@ -193,9 +197,7 @@ Debugger::HandleInput(cell_t cip, cell_t frm, bool isBp)
       return;
     }
     
-    /*else if (!stricmp(command, "f") || !stricmp(command, "frame")) {
-      HandleFrameCmd(params);
-    }
+    /*
     // Change display format of symbol
     else if (!stricmp(command, "type")) {
       HandleDisplayFormatChangeCmd(params);
@@ -269,11 +271,7 @@ Debugger::ListCommands(const std::string command)
     std::cout << "\tno additional information\n";
   }
 
-  /*if (!stricmp(command, "f") || !stricmp(command, "frame")) {
-    printf("\tFRAME may be abbreviated to F\n\n");
-    printf("\tFRAME n\tselect frame n and show/change local variables in that function\n");
-  }
-  else if (!stricmp(command, "type")) {
+  /*if (!stricmp(command, "type")) {
     printf("\tTYPE var STRING\t\tdisplay \"var\" as string\n"
       "\tTYPE var STD\t\tset default display format (decimal integer)\n"
       "\tTYPE var HEX\t\tset hexadecimal integer format\n"
@@ -281,7 +279,6 @@ Debugger::ListCommands(const std::string command)
   }
   else {
     printf(
-      "\tF(rame)\t\tSelect a frame from the back trace to operate on\n"
       "\tTYPE\t\tset the \"display type\" of a symbol\n"
       "\n\tUse \"? <command name>\" to view more information on a command\n");
   }*/
@@ -304,8 +301,8 @@ Debugger::PrintCurrentPosition()
   if (currentfunction_)
     printf(" in %s", currentfunction_);
 
-  /*if (selected_frame_ > 0)
-    printf("\tframe: %d", selected_frame_);*/
+  if (selected_frame_ > 0)
+    printf("\tframe: %d", selected_frame_);
 
   fputs("\n", stdout);
 }

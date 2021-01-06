@@ -99,6 +99,12 @@ public:
   void SetCurrentFunction(const char *function) {
     currentfunction_ = function;
   }
+  uint32_t framecount() const {
+    return frame_count_;
+  }
+  uint32_t selectedframe() const {
+    return selected_frame_;
+  }
   BreakpointManager& breakpoints() {
     return breakpoints_;
   }
@@ -111,8 +117,17 @@ public:
   cell_t frm() const {
     return frm_;
   }
+  SourcePawn::IPluginContext* basectx() const {
+    return context_;
+  }
   SourcePawn::IPluginContext* ctx() const {
     return selected_context_;
+  }
+  void UpdateSelectedContext(SourcePawn::IPluginContext* ctx, uint32_t frame, cell_t cip, cell_t frm) {
+    selected_context_ = ctx;
+    selected_frame_ = frame;
+    cip_ = cip;
+    frm_ = frm;
   }
 
   void DumpStack();

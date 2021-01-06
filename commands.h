@@ -109,6 +109,13 @@ public:
   virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
+class FrameCommand : public DebuggerCommand {
+public:
+  FrameCommand(Debugger* debugger) : DebuggerCommand(debugger, { "frame", "f" }, "select a frame from the back trace to operate on") {}
+  virtual CommandResult Accept(const std::string& command, const std::string& params);
+  virtual bool LongHelp(const std::string& command);
+};
+
 class FunctionsCommand : public DebuggerCommand {
 public:
   FunctionsCommand(Debugger* debugger) : DebuggerCommand(debugger, { "funcs", "functions" }, "display functions") {}

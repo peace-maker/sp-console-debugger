@@ -61,7 +61,7 @@ DebuggerCommand::ShortHelp() {
 
 CommandResult
 BacktraceCommand::Accept(const std::string& command, const std::string& params) {
-  fputs("Stack trace:", stdout);
+  std::cout << "Stack trace:\n";
   debugger_->DumpStack();
   return CR_StayCommandLoop;
 }
@@ -454,6 +454,134 @@ FilesCommand::Accept(const std::string& command, const std::string& params) {
     }
   }
   return CR_StayCommandLoop;
+}
+
+// Hack to access data in the VM currently not exposed to extensions.
+// Highly depends on the VM version.
+// TODO: Find a way to safely expose this "implementation detail".
+namespace sp {
+  class InlineFrameIterator
+  {
+  public:
+    virtual ~InlineFrameIterator()
+    {}
+
+    // "done" should return true if, after the current frame, there are no more
+    // frames to iterate.
+    virtual bool done() const = 0;
+    virtual void next() = 0;
+    virtual int type() const = 0;
+    virtual cell_t function_cip() const = 0;
+    virtual cell_t cip() const = 0;
+    virtual uint32_t native_index() const = 0;
+  };
+
+  class FrameIteratorHack
+  {
+  public:
+    virtual void somefunc() = 0;
+    void* ivk_;
+    void* runtime_;
+    intptr_t* next_exit_fp_;
+    std::unique_ptr<InlineFrameIterator> frame_cursor_;
+  };
+}
+
+CommandResult
+FrameCommand::Accept(const std::string& command, const std::string& params) {
+  if (params.empty() || !isdigit(params[0])) {
+    std::cout << "Invalid syntax. Type \"? frame\" for help.\n";
+    return CR_StayCommandLoop;
+  }
+
+  uint32_t frame = strtoul(params.c_str(), nullptr, 10);
+  if (debugger_->framecount() <= frame) {
+    std::cout << "Invalid frame. There are only " << debugger_->framecount() << " frames on the stack.\n";
+    return CR_StayCommandLoop;
+  }
+
+  if (frame == debugger_->selectedframe()) {
+    std::cout << "This frame is already selected.\n";
+    return CR_StayCommandLoop;
+  }
+
+  IFrameIterator *frames = debugger_->basectx()->CreateFrameIterator();
+
+  // Select this frame to operate on.
+  uint32_t index = 0;
+  for (; !frames->Done(); frames->Next(), index++) {
+    // Iterator is at the chosen frame now.
+    if (index == frame)
+      break;
+  }
+
+  if (!frames->IsScriptedFrame()) {
+    std::cout << frame << " is not a scripted frame.\n";
+    debugger_->basectx()->DestroyFrameIterator(frames);
+    return CR_StayCommandLoop;
+  }
+
+  // Get the plugin context of the target frame
+  IPluginContext* ctx = frames->Context();
+  // Reset the frame iterator again and count all above frames in the context.
+  frames->Reset();
+  index = 0;
+  uint32_t num_scripted_frames = 0;
+  for (; !frames->Done(); frames->Next(), index++) {
+    if (frames->IsInternalFrame())
+      continue;
+
+    // Count the scripted frames in the context to find the right frm pointer.
+    if (frames->IsScriptedFrame() && frames->Context() == ctx)
+      num_scripted_frames++;
+    // We've reached the chosen frame.
+    if (index == frame)
+      break;
+  }
+
+  // Update internal state for this frame.
+
+  // FIXME: Properly expose this from the VM :D
+  sp::FrameIteratorHack* frames_hack = reinterpret_cast<sp::FrameIteratorHack*>(frames);
+  cell_t cip = frames_hack->frame_cursor_->cip();
+  debugger_->basectx()->DestroyFrameIterator(frames);
+
+  // TODO: Properly expose this from the VM :D
+  cell_t frm = *(cell_t*)(uintptr_t(ctx) + sizeof(void*)*10 + sizeof(bool)*4 + sizeof(uint32_t)*2 + sizeof(cell_t)*3);
+  // Find correct new frame pointer.
+  cell_t* ptr;
+  for (uint32_t i = 1; i < num_scripted_frames; i++) {
+    if (ctx->LocalToPhysAddr(frm + 4, &ptr) != SP_ERROR_NONE) {
+      std::cout << "Failed to find frame pointer of selected stack frame.\n";
+      return CR_StayCommandLoop;
+    }
+    frm = *ptr;
+  }
+
+  IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
+  uint32_t line = 0;
+  debuginfo->LookupLine(cip, &line);
+  debugger_->SetCurrentLine(line);
+
+  const char *filename = nullptr;
+  debuginfo->LookupFile(cip, &filename);
+  debugger_->SetCurrentFile(filename);
+
+  const char *function = nullptr;
+  debuginfo->LookupFunction(cip, &function);
+  debugger_->SetCurrentFunction(function);
+
+  debugger_->UpdateSelectedContext(ctx, frame, cip, frm);
+  std::cout << "Selected frame " << frame << ".\n";
+
+  return CR_StayCommandLoop;
+}
+
+bool
+FrameCommand::LongHelp(const std::string& command) {
+  std::cout << "\tFRAME may be abbreviated to F\n\n"
+    "\tFRAME n\tselect frame n and show/change local variables in that function\n";
+  return true;
 }
 
 CommandResult
