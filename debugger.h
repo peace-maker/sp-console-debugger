@@ -2,7 +2,7 @@
 * vim: set ts=4 :
 * =============================================================================
 * SourceMod Console Debugger Extension
-* Copyright (C) 2016-2018 AlliedModders LLC.  All rights reserved.
+* Copyright (C) 2018-2021 Peace-Maker  All rights reserved.
 * =============================================================================
 *
 * This program is free software; you can redistribute it and/or modify it under
@@ -29,9 +29,17 @@
 * Version: $Id$
 */
 
+#ifndef _INCLUDE_DEBUGGER_H
+#define _INCLUDE_DEBUGGER_H
+
+#include <string>
+#include <vector>
+
 #include "sp_vm_api.h"
 #include "amtl/am-hashmap.h"
 #include "console-helpers.h"
+#include "breakpoints.h"
+#include "symbols.h"
 
 enum Runmode {
   STEPPING, /* step into functions */
@@ -40,128 +48,99 @@ enum Runmode {
   RUNNING, /* just run */
 };
 
-class Breakpoint;
+class DebuggerCommand;
 
 class Debugger {
 public:
   Debugger(SourcePawn::IPluginContext *context);
   bool Initialize();
-  bool active();
+  bool active() const {
+    return active_;
+  }
   void Activate();
   void Deactivate();
+  SourcePawn::IPluginDebugInfo* GetDebugInfo() const;
 
-  void HandleInput(cell_t cip, bool isBp);
-  void ListCommands(const char *command);
+  void HandleInput(cell_t cip, cell_t frm, bool isBp);
+  void ListCommands(const std::string command);
 
 private:
-  void HandleHelpCmd(const char *line);
-  void HandleQuitCmd();
-  bool HandleGoCmd(char *params);
-  /*void HandleFunctionListCmd();
-  void HandleFrameCmd(char *params);*/
-  void HandleBreakpointCmd(char *command, char *params);
-  void HandleClearBreakpointCmd(char *params);
-  /*void HandleVariableDisplayCmd(char *params);
-  void HandleSetVariableCmd(char *params);*/
-  void HandleFilesListCmd();
- // void HandleDisplayFormatChangeCmd(char *params);
-  void HandlePrintPositionCmd();
-  /*void HandleWatchCmd(char *params);
-  void HandleClearWatchCmd(char *params);
-  void HandleDumpMemoryCmd(char *command, char *params);*/
+  //void HandleFrameCmd(char *params);
+  //void HandleDisplayFormatChangeCmd(char *params);
 
 public:
-  Runmode runmode();
-  void SetRunmode(Runmode runmode);
-  cell_t lastframe();
-  void SetLastFrame(cell_t lastfrm);
-  uint32_t lastline();
-  void SetLastLine(uint32_t line);
-  uint32_t breakcount();
-  void SetBreakCount(uint32_t breakcount);
-  const char *currentfile();
-  void SetCurrentFile(const char *file);
-
-  Breakpoint *AddBreakpoint(const char *file, uint32_t line, bool temporary);
-  Breakpoint *AddBreakpoint(const char *file, const char *function, bool temporary);
-  bool ClearBreakpoint(int number);
-  bool ClearBreakpoint(Breakpoint *);
-  void ClearAllBreakpoints();
-  bool CheckBreakpoint(cell_t cip);
-  int FindBreakpoint(char *breakpoint);
-  void ListBreakpoints();
-  char *ParseBreakpointLine(char *input, const char **filename);
-  size_t GetBreakpointCount();
+  Runmode runmode() const {
+    return runmode_;
+  }
+  void SetRunmode(Runmode runmode) {
+    runmode_ = runmode;
+  }
+  cell_t lastframe() const {
+    return lastfrm_;
+  }
+  void SetLastFrame(cell_t lastfrm) {
+    lastfrm_ = lastfrm;
+  }
+  uint32_t currentline() const {
+    return lastline_;
+  }
+  void SetCurrentLine(uint32_t line) {
+    lastline_ = line;
+  }
+  const char *currentfile() const {
+    return currentfile_;
+  }
+  void SetCurrentFile(const char *file) {
+    currentfile_ = file;
+  }
+  const char *currentfunction() const {
+    return currentfunction_;
+  }
+  void SetCurrentFunction(const char *function) {
+    currentfunction_ = function;
+  }
+  BreakpointManager& breakpoints() {
+    return breakpoints_;
+  }
+  SymbolManager& symbols() {
+    return symbols_;
+  }
+  cell_t cip() const {
+    return cip_;
+  }
+  cell_t frm() const {
+    return frm_;
+  }
+  SourcePawn::IPluginContext* ctx() const {
+    return selected_context_;
+  }
 
   void DumpStack();
+  void PrintCurrentPosition();
+  std::string FindFileByPartialName(const std::string partialname);
 
 private:
-  const char *FindFileByPartialName(const char *partialname);
-
-public:
-  struct BreakpointMapPolicy {
-
-    static inline uint32_t hash(ucell_t value) {
-      return ke::HashInteger<4>(value);
-    }
-
-    static inline bool matches(ucell_t a, ucell_t b) {
-      return a == b;
-    }
-  };
-  typedef ke::HashMap<ucell_t, Breakpoint *, BreakpointMapPolicy> BreakpointMap;
-
-  BreakpointMap breakpoint_map_;
+  std::shared_ptr<DebuggerCommand> ResolveCommandString(const std::string command);
 
 private:
   SourcePawn::IPluginContext * context_;
   Runmode runmode_;
   cell_t lastfrm_;
   uint32_t lastline_;
-  uint32_t breakcount_;
   const char *currentfile_;
+  const char *currentfunction_;
+  bool is_breakpoint_;
   bool active_;
+  std::vector<std::shared_ptr<DebuggerCommand>> commands_;
+  BreakpointManager breakpoints_;
+  SymbolManager symbols_;
 
   // Temporary variables to use inside command loop
   cell_t cip_;
+  cell_t frm_;
   uint32_t frame_count_;
   uint32_t selected_frame_;
   SourcePawn::IPluginContext *selected_context_;
 };
 
-class Breakpoint {
-public:
-  Breakpoint(SourcePawn::IPluginDebugInfo *debuginfo, ucell_t addr, const char *name, bool temporary = false)
-    : debuginfo_(debuginfo),
-    addr_(addr),
-    name_(name),
-    temporary_(temporary)
-  {}
-
-  ucell_t addr() {
-    return addr_;
-  }
-  const char *name() {
-    return name_;
-  }
-  bool temporary() {
-    return temporary_;
-  }
-  const char *filename() {
-    const char *filename;
-    if (debuginfo_->LookupFile(addr_, &filename) == SP_ERROR_NONE)
-      return SkipPath(filename);
-    return "";
-  }
-  uint32_t line() {
-    uint32_t line;
-    if (debuginfo_->LookupLine(addr_, &line) == SP_ERROR_NONE)
-      return line;
-    return 0;
-  }
-private:
-  SourcePawn::IPluginDebugInfo * debuginfo_; /* debug info of plugin the address is in */
-  ucell_t addr_; /* address (in code or data segment) */
-  const char *name_; /* name of the symbol (function) */
-  bool temporary_; /* delete breakpoint when hit? */
-};
+#endif // _INCLUDE_DEBUGGER_H

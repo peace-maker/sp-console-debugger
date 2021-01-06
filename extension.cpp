@@ -2,7 +2,7 @@
  * vim: set ts=4 :
  * =============================================================================
  * SourceMod Console Debugger Extension
- * Copyright (C) 2016-2018 AlliedModders LLC.  All rights reserved.
+ * Copyright (C) 2018-2021 Peace-Maker  All rights reserved.
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -29,12 +29,13 @@
  * Version: $Id$
  */
 
+#include <memory>
+#include <string>
+
 #include "extension.h"
 #include "debugger.h"
 #include "console-helpers.h"
 #include <amtl/am-platform.h>
-#include <amtl/am-autoptr.h>
-#include <amtl/am-string.h>
 #ifdef KE_POSIX
 #include <ctype.h>
 #endif
@@ -208,12 +209,13 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
       return;
     }
 
+    BreakpointManager& breakpoints = debugger->breakpoints();
     // Check the sub command.
     const char *arg = args->Arg(4);
     if (!strcmp(arg, "list")) {
-      rootconsole->ConsolePrint("[SM] Listing %zu breakpoint(s) for plugin %s:", debugger->GetBreakpointCount(), name);
+      rootconsole->ConsolePrint("[SM] Listing %zu breakpoint(s) for plugin %s:", breakpoints.GetBreakpointCount(), name);
 
-      debugger->ListBreakpoints();
+      breakpoints.ListBreakpoints();
     }
     else if (!strcmp(arg, "add")) {
       if (argcount < 6) {
@@ -221,15 +223,15 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
         return;
       }
 
-      const char *bpline = args->Arg(5);
+      std::string bpline = args->Arg(5);
 
       // check if a filename precedes the breakpoint location
-      const char *filename = nullptr;
-      bpline = debugger->ParseBreakpointLine((char *)bpline, &filename);
+      std::string filename;
+      bpline = breakpoints.ParseBreakpointLine(bpline, &filename);
 
       // User didn't specify a filename. 
       // Use the main source file by default (last one in the list).
-      if (!filename) {
+      if (filename.empty()) {
         IPluginDebugInfo *debuginfo = pl->GetRuntime()->GetDebugInfo();
         if (debuginfo->NumFiles() <= 0)
           return;
@@ -238,11 +240,11 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
 
       Breakpoint *bp = nullptr;
       // User specified a line number
-      if (isdigit(*bpline))
-        bp = debugger->AddBreakpoint(filename, strtol(bpline, NULL, 10) - 1, false);
+      if (isdigit(bpline[0]))
+        bp = breakpoints.AddBreakpoint(filename, strtol(bpline.c_str(), NULL, 10) - 1, false);
       // User specified a function name
       else
-        bp = debugger->AddBreakpoint(filename, bpline, false);
+        bp = breakpoints.AddBreakpoint(filename, bpline, false);
 
       if (!bp)
         rootconsole->ConsolePrint("[SM] Invalid breakpoint address specification.");
@@ -258,7 +260,7 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
 
       const char *bpstr = args->Arg(5);
       int bpnum = strtoul(bpstr, NULL, 10);
-      if (debugger->ClearBreakpoint(bpnum))
+      if (breakpoints.ClearBreakpoint(bpnum))
         rootconsole->ConsolePrint("[SM] Breakpoint cleared.");
       else
         rootconsole->ConsolePrint("[SM] Failed to clear breakpoint.");
@@ -275,7 +277,7 @@ ConsoleDebugger::FindPluginByConsoleArg(const char *arg)
 
   id = strtol(arg, &end, 10);
 
-  AutoPtr<IPluginIterator> iter(plsys->GetPluginIterator());
+  std::unique_ptr<IPluginIterator> iter(plsys->GetPluginIterator());
   if (*end == '\0')
   {
     // Get plugin by order in the list.
@@ -364,19 +366,8 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
       printf("STOP on FATAL exception: %s\n", report->Message());
     else
       printf("STOP on exception: %s\n", report->Message());
-
-    uint32_t line = 0;
-    debuginfo->LookupLine(dbginfo.cip, &line);
-
-    // Remember on which line we halt for the next time.
-    debugger->SetLastLine(line);
-    debugger->SetBreakCount(0);
   }
   else {
-    // Remember which runmode we've been in,
-    // before changing to stepping below.
-    Runmode orig_runmode = debugger->runmode();
-
     // When running until the function returns, 
     // check the current frame address against 
     // the saved one from the function.
@@ -395,7 +386,7 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
       debugger->runmode() != Runmode::STEPOVER)
     {
       // Check breakpoint address
-      isBreakpoint = debugger->CheckBreakpoint(dbginfo.cip);
+      isBreakpoint = debugger->breakpoints().CheckBreakpoint(dbginfo.cip);
       // Continue execution normally.
       if (!isBreakpoint)
         return;
@@ -403,27 +394,6 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
       // There is a breakpoint! Start stepping through the plugin.
       debugger->SetRunmode(Runmode::STEPPING);
     }
-
-    // Count how often we hit a breakpoint on this line.
-    // Don't break multiple times on the same line,
-    // and return to the previous runmode, if we didn't
-    // break on this line more than 5 times already.
-    debugger->SetBreakCount(debugger->breakcount() + 1);
-
-    // Try to avoid halting on the same line twice.
-    uint32_t line = 0;
-    if (debuginfo->LookupLine(dbginfo.cip, &line) == SP_ERROR_NONE) {
-      // Assume that there are no more than 5 breaks on a single line.
-      // If there are, halt.
-      if (line == debugger->lastline() && debugger->breakcount() < 5) {
-        debugger->SetRunmode(orig_runmode);
-        return;
-      }
-    }
-
-    // Remember on which line we halt for the next time.
-    debugger->SetLastLine(line);
-    debugger->SetBreakCount(0);
 
     // If we want to skip calls, check whether
     // we are stepping through a sub-function.
@@ -436,11 +406,20 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
     }
   }
 
+  // Remember on which line we halt.
+  uint32_t line = 0;
+  debuginfo->LookupLine(dbginfo.cip, &line);
+  debugger->SetCurrentLine(line);
+
   // Remember which file we're in.
-  const char *filename;
-  if (debuginfo->LookupFile(dbginfo.cip, &filename) == SP_ERROR_NONE) {
-    debugger->SetCurrentFile(filename);
-  }
+  const char *filename = nullptr;
+  debuginfo->LookupFile(dbginfo.cip, &filename);
+  debugger->SetCurrentFile(filename);
+
+  // Remember which function we're in.
+  const char *function = nullptr;
+  debuginfo->LookupFunction(dbginfo.cip, &function);
+  debugger->SetCurrentFunction(function);
 
   // Echo input back and enable basic control.
   // This helps to have a shell-like typing experience.
@@ -451,7 +430,7 @@ OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePa
   unsigned int oldtimeout = DisableEngineWatchdog();
 
   // Start the debugger shell and wait for commands.
-  debugger->HandleInput(dbginfo.cip, isBreakpoint);
+  debugger->HandleInput(dbginfo.cip, dbginfo.frm, isBreakpoint);
 
   // Enable the watchdog timer again if it was enabled before.
   ResetEngineWatchdog(oldtimeout);
