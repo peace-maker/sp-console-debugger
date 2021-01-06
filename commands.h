@@ -61,7 +61,7 @@ protected:
 
 class BacktraceCommand : public DebuggerCommand {
 public:
-  BacktraceCommand(Debugger* debugger) : DebuggerCommand(debugger, { "bt", "backtrace" }, "display the stack trace") {}
+  BacktraceCommand(Debugger* debugger) : DebuggerCommand(debugger, { "backtrace", "bt" }, "display the stack trace") {}
   virtual CommandResult Accept(const std::string& command, const std::string& params);
 };
 
