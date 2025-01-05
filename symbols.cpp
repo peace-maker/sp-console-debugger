@@ -30,6 +30,7 @@
 */
 #include "symbols.h"
 #include "debugger.h"
+#include <smx/smx-legacy-debuginfo.h>
 #include <sstream>
 #include <cstring>
 
@@ -130,8 +131,8 @@ SymbolManager::ListWatches()
 
     // Parse all [x][y] dimensions
     int dim = 0;
-    uint32_t idx[sDIMEN_MAX];
-    while (index_offs != std::string::npos && dim < sDIMEN_MAX) {
+    uint32_t idx[MAX_LEGACY_DIMENSIONS];
+    while (index_offs != std::string::npos && dim < MAX_LEGACY_DIMENSIONS) {
       idx[dim++] = atoi(symname.substr(index_offs + 1).c_str());
       index_offs = symname.find('[', index_offs + 1);
     }
@@ -178,7 +179,7 @@ SymbolWrapper::DisplayVariable(uint32_t index[], uint32_t idxlevel)
 
   cell_t value;
   if (type->isEnumStruct()) {
-    uint32_t idx[sDIMEN_MAX];
+    uint32_t idx[MAX_LEGACY_DIMENSIONS];
     memset(idx, 0, sizeof(idx));
     fputs("{", stdout);
     for (uint32_t i = 0; i < type->esfieldcount(); i++) {

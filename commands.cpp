@@ -32,6 +32,7 @@
 #include "debugger.h"
 #include <iostream>
 #include <amtl/am-string.h>
+#include <smx/smx-legacy-debuginfo.h>
 
 using namespace SourcePawn;
 
@@ -619,7 +620,7 @@ PositionCommand::Accept(const std::string& command, const std::string& params) {
 
 CommandResult
 PrintVariableCommand::Accept(const std::string& command, const std::string& params) {
-  uint32_t idx[sDIMEN_MAX];
+  uint32_t idx[MAX_LEGACY_DIMENSIONS];
   memset(idx, 0, sizeof(idx));
   IPluginDebugInfo *debuginfo = debugger_->ctx()->GetRuntime()->GetDebugInfo();
 
@@ -651,7 +652,7 @@ PrintVariableCommand::Accept(const std::string& command, const std::string& para
 
     // Parse all [x][y] dimensions
     int dim = 0;
-    while (index_offs != std::string::npos && dim < sDIMEN_MAX) {
+    while (index_offs != std::string::npos && dim < MAX_LEGACY_DIMENSIONS) {
       idx[dim++] = atoi(params.substr(index_offs+1).c_str());
       index_offs = params.find('[', index_offs+1);
     }
