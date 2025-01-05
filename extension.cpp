@@ -271,11 +271,8 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
 IPlugin *
 ConsoleDebugger::FindPluginByConsoleArg(const char *arg)
 {
-  int id;
   char *end;
-  IPlugin *pl;
-
-  id = strtol(arg, &end, 10);
+  int id = strtol(arg, &end, 10);
 
   std::unique_ptr<IPluginIterator> iter(plsys->GetPluginIterator());
   if (*end == '\0')
@@ -287,9 +284,7 @@ ConsoleDebugger::FindPluginByConsoleArg(const char *arg)
     for (int i = 1; iter->MorePlugins() && i < id; iter->NextPlugin(), i++) {
       // Empty loop.
     }
-    pl = iter->GetPlugin();
-    if (!pl)
-      return nullptr;
+    return iter->GetPlugin();
   }
   else
   {
@@ -299,14 +294,13 @@ ConsoleDebugger::FindPluginByConsoleArg(const char *arg)
     libsys->PathFormat(pluginfile, sizeof(pluginfile), "%s%s", arg, ext);
 
     for (; iter->MorePlugins(); iter->NextPlugin()) {
-      pl = iter->GetPlugin();
+      IPlugin *pl = iter->GetPlugin();
 
       if (!strcmp(pl->GetFilename(), pluginfile))
         return pl;
     }
+    return nullptr;
   }
-
-  return pl;
 }
 
 bool
