@@ -412,7 +412,7 @@ SymbolWrapper::GetEffectiveSymbolAddress(cell_t *address)
 
   // a reference. arrays are always passed by reference.
   cell_t *addr;
-  if (symbol_->type()->isReference() || (symbol_->type()->isArray() && symbol_->scope() == SourcePawn::Argument)) {
+  if (symbol_->type()->isReference() || symbol_->type()->isArray()) {
     if (debugger_->ctx()->LocalToPhysAddr(base, &addr) != SP_ERROR_NONE)
       return false;
 
