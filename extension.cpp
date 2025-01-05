@@ -36,6 +36,7 @@
 #include "debugger.h"
 #include "console-helpers.h"
 #include <amtl/am-platform.h>
+#include <amtl/os/am-shared-library.h>
 #ifdef KE_POSIX
 #include <ctype.h>
 #endif
@@ -53,6 +54,12 @@ SMEXT_LINK(&g_Debugger);
 
 void OnDebugBreak(IPluginContext *ctx, sp_debug_break_info_t& dbginfo, const SourcePawn::IErrorReport *report);
 
+#if defined PLATFORM_X86
+# define SOURCEPAWN_DLL "sourcepawn.jit.x86"
+#else
+# define SOURCEPAWN_DLL "sourcepawn.vm"
+#endif
+
 bool
 ConsoleDebugger::SDK_OnLoad(char *error, size_t maxlength, bool late)
 {
@@ -66,6 +73,33 @@ ConsoleDebugger::SDK_OnLoad(char *error, size_t maxlength, bool late)
   {
     ke::SafeStrcpy(error, maxlength, "Failed to setup plugin -> debugger instance map.");
     return false;
+  }
+
+  if (!late)
+  {
+    // Try to enable line debugging support in the VM until https://github.com/alliedmodders/sourcemod/pull/2240 is merged.
+    // This is a hack to get the SourcePawn VM factory function.
+    // https://github.com/Garey27/sm-debugger/blob/3c01bf6cede2bb7ddeffb24d0f35d87c4538e039/src/extension.cpp#L127
+    char file[PLATFORM_MAX_PATH];
+    smutils->BuildPath(Path_SM, file, sizeof(file), "bin/" PLATFORM_ARCH_FOLDER SOURCEPAWN_DLL ".%s", PLATFORM_LIB_EXT);
+    auto module = ke::SharedLib::Open(file);
+    if (module != nullptr)
+    {
+      GetSourcePawnFactoryFn factoryFn = module->get<decltype(factoryFn)>("GetSourcePawnFactory");
+      if (factoryFn)
+      {
+        const int LOWEST_SOURCEPAWN_API_VERSION = 0x0207;
+        ISourcePawnFactory *factory = factoryFn(LOWEST_SOURCEPAWN_API_VERSION);
+        if (factory)
+        {
+          ISourcePawnEnvironment *current_env = factory->CurrentEnvironment();
+          if (current_env)
+          {
+            current_env->EnableDebugBreak();
+          }
+        }
+      }
+    }
   }
 
   if (smutils->GetScriptingEngine()->SetDebugBreakHandler(OnDebugBreak) != SP_ERROR_NONE)
