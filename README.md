@@ -51,3 +51,30 @@ Available commands:
 
         Use "? <command name>" to view more information on a command
 ```
+
+## Installation
+
+Currently, a [modified SourcePawn VM](https://github.com/peace-maker/sourcepawn/tree/debug_api_symbols) is required which exposes information about the debug symbols of a plugin. To use this, you have to build the sourcepawn VM with the required changes.
+
+To build sourcemod with the modified SourcePawn VM, replace the sourcepawn submodule with the forked one and follow the [normal build instructions](https://wiki.alliedmods.net/Building_SourceMod):
+```
+git clone --recurse-submodules https://github.com/alliedmodders/sourcemod sourcemod_debugger
+# Switch to the debug symbol modification of SourcePawn
+cd sourcemod_debugger/sourcepawn
+git remote add peace-maker https://github.com/peace-maker/sourcepawn
+git fetch peace-maker
+git switch debug_api_symbols
+cd ..
+python configure.py --sdks css --enable-optimize --no-mysql
+ambuild objdir
+# install sourcemod from objdir/package
+```
+
+To build the extension:
+```
+git clone https://github.com/peace-maker/sp-console-debugger
+cd sp-console-debugger
+python configure.py --enable-optimize --sm-path /path/to/sourcemod_debugger
+ambuild objdir
+# install extension from objdir/package. make sure to copy the .autoload file too.
+```
