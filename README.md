@@ -54,6 +54,10 @@ Available commands:
 
 ## Installation
 
+Build artifacts are uploaded as artifacts in the Github Actions CI. Have a look at [the latest run](https://github.com/peace-maker/sp-console-debugger/actions) and download the archive matching the operating system of your server. It includes a SourcePawn VM build which includes the [required changes](https://github.com/peace-maker/sourcepawn/tree/debug_api_symbols) to expose information about the debug symbols in a plugin.
+
+## Building
+
 Currently, a [modified SourcePawn VM](https://github.com/peace-maker/sourcepawn/tree/debug_api_symbols) is required which exposes information about the debug symbols of a plugin. To use this, you have to build the sourcepawn VM with the required changes.
 
 To build sourcemod with the modified SourcePawn VM, replace the sourcepawn submodule with the forked one and follow the [normal build instructions](https://wiki.alliedmods.net/Building_SourceMod):
