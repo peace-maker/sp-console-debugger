@@ -1,0 +1,88 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 03 01 */3 *" # Artifacts expire every 3 months
+
+jobs:
+  build:
+    name: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - windows-latest
+
+    steps:
+      - name: Prepare env
+        shell: bash
+        run: |
+          echo "GITHUB_SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Install (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-multilib g++-multilib libstdc++6 lib32stdc++6 \
+            libc6-dev libc6-dev-i386 linux-libc-dev \
+            linux-libc-dev:i386 clang
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+
+      - name: Getting SourceMod
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/sourcemod
+          path: sourcemod
+          submodules: recursive
+
+      - name: Switch to debug symbol sourcepawn branch
+        run: |
+          cd sourcemod/sourcepawn
+          git remote add peace https://github.com/peace-maker/sourcepawn.git
+          git fetch peace
+          git switch debug_api_symbols
+          git submodule update --init --recursive
+
+      - name: Getting ambuild
+        run: |
+          python -m pip install wheel
+          pip install git+https://github.com/alliedmodders/ambuild
+
+      - name: Getting own repository
+        uses: actions/checkout@v4
+        with:
+          path: sp-console-debugger
+
+      - name: Compiling Extension
+        working-directory: sp-console-debugger
+        run: |
+          python configure.py --enable-optimize --targets x86,x86_64 --sm-path="${{ github.workspace }}/sourcemod"
+          ambuild objdir
+    
+      - name: Compiling SourcePawn VM
+        working-directory: sourcemod/sourcepawn
+        shell: bash
+        run: |
+          python configure.py --enable-optimize --targets x86,x86_64
+          ambuild objdir
+          mkdir -p "${{ github.workspace }}/sp-console-debugger/objdir/package/addons/sourcemod/bin/x64"
+          if [ -f objdir/libsourcepawn/linux-x86/libsourcepawn.so ]; then
+            cp objdir/libsourcepawn/linux-x86/libsourcepawn.so "${{ github.workspace }}/sp-console-debugger/objdir/package/addons/sourcemod/bin/sourcepawn.jit.x86.so"
+            cp objdir/libsourcepawn/linux-x86_64/libsourcepawn.so "${{ github.workspace }}/sp-console-debugger/objdir/package/addons/sourcemod/bin/x64/sourcepawn.vm.so"
+          else
+            cp objdir/libsourcepawn/windows-x86/libsourcepawn.dll "${{ github.workspace }}/sp-console-debugger/objdir/package/addons/sourcemod/bin/sourcepawn.jit.x86.dll"
+            cp objdir/libsourcepawn/windows-x86_64/libsourcepawn.dll "${{ github.workspace }}/sp-console-debugger/objdir/package/addons/sourcemod/bin/x64/sourcepawn.vm.dll"
+          fi
+
+      - name: Uploading package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sp-console-debugger-${{ matrix.os }}-${{ env.GITHUB_SHA_SHORT }}
+          path: sp-console-debugger/objdir/package
