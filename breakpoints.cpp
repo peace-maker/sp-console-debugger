@@ -229,11 +229,12 @@ BreakpointManager::ParseBreakpointLine(const std::string& input, std::string* fi
     std::string partial_filename = input.substr(0, sep_offs);
     // the user may have given a partial filename (e.g. without a path), so
     // walk through all files to find a match
-    *filename = debugger_->FindFileByPartialName(partial_filename);
-    if ((*filename).empty()) {
+    const char* found_filename = debugger_->FindFileByPartialName(partial_filename);
+    if (!found_filename) {
       std::cout << "Invalid filename.\n";
       return "";
     }
+    *filename = found_filename;
     return input.substr(sep_offs + 1);
   }
   return input;

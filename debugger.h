@@ -132,7 +132,7 @@ public:
 
   void DumpStack();
   void PrintCurrentPosition();
-  std::string FindFileByPartialName(const std::string partialname);
+  const char* FindFileByPartialName(const std::string partialname);
 
 private:
   std::shared_ptr<DebuggerCommand> ResolveCommandString(const std::string command);

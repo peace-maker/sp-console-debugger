@@ -345,7 +345,7 @@ Debugger::DumpStack()
   context_->DestroyFrameIterator(frames);
 }
 
-std::string
+const char*
 Debugger::FindFileByPartialName(const std::string partialname)
 {
   // the user may have given a partial filename (e.g. without a path), so
