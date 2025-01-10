@@ -131,7 +131,7 @@ SymbolManager::ListWatches()
 
     // Parse all [x][y] dimensions
     int dim = 0;
-    uint32_t idx[MAX_LEGACY_DIMENSIONS];
+    uint32_t idx[MAX_LEGACY_DIMENSIONS] = { 0 };
     while (index_offs != std::string::npos && dim < MAX_LEGACY_DIMENSIONS) {
       idx[dim++] = atoi(symname.substr(index_offs + 1).c_str());
       index_offs = symname.find('[', index_offs + 1);
