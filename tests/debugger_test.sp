@@ -17,6 +17,8 @@ enum struct SomeStruct {
     float esFloat;
     char esString[32];
 }
+
+SomeStruct g_EnumStruct = { 100, 200.95, "global enum struct" };
 #endif
 
 public void OnPluginStart() {
@@ -54,12 +56,20 @@ void BreakHere(int argInteger, float argFloat, char[] argString, int[] argIntArr
     int locIntArray[20] = {51, ... };
     float locFloatArray[20] = {51.51, ... };
     char locStringArray[2][] = { "Hundred", "Twenty" };
+#if SOURCEMOD_V_MINOR >= 10
+    SomeStruct locEnumStruct = { 1000, 4444.641, "local enum struct string" };
+#endif
     OUTPUT(locInteger, "%d");
     OUTPUT(locFloat, "%f");
     OUTPUT(locString, "%s");
     OUTPUT(locIntArray[5], "%d");
     OUTPUT(locFloatArray[7], "%f");
     OUTPUT(locStringArray[1], "%s");
+#if SOURCEMOD_V_MINOR >= 10
+    OUTPUT(locEnumStruct.esInteger, "%d");
+    OUTPUT(locEnumStruct.esFloat, "%f");
+    OUTPUT(locEnumStruct.esString, "%s");
+#endif
     OUTPUT(argInteger, "%d");
     OUTPUT(argFloat, "%f");
     OUTPUT(argString, "%s");
@@ -78,4 +88,9 @@ void BreakHere(int argInteger, float argFloat, char[] argString, int[] argIntArr
     OUTPUT(g_FloatArray[7], "%f");
     OUTPUT(g_StringArray[1], "%s");
     OUTPUT(g_IntMultiArray[1][3], "%d");
+#if SOURCEMOD_V_MINOR >= 10
+    OUTPUT(g_EnumStruct.esInteger, "%d");
+    OUTPUT(g_EnumStruct.esFloat, "%f");
+    OUTPUT(g_EnumStruct.esString, "%s");
+#endif
 }

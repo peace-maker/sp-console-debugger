@@ -48,5 +48,5 @@ EOF
     echo "$pluginname: Test passed"
 }
 
-test_output debugger_test_latest 81
-test_output debugger_test_1.7 80
+test_output debugger_test_latest 96
+test_output debugger_test_1.7 90
