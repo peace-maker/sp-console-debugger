@@ -65,17 +65,21 @@ BreakpointManager::CheckBreakpoint(cell_t cip)
 }
 
 Breakpoint *
-BreakpointManager::AddBreakpoint(const std::string& file, cell_t addr, bool temporary)
+BreakpointManager::AddBreakpoint(const std::string& file, cell_t line, bool temporary)
 {
   Breakpoint *bp;
   {
+    ucell_t addr;
+    IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
+    if (debuginfo->LookupLineAddress(line, file.c_str(), &addr) != SP_ERROR_NONE)
+      return nullptr;
+
     // See if there's already a breakpoint in place here.
     BreakpointMap::Insert p = breakpoint_map_.findForAdd(addr);
     if (p.found())
       return p->value;
 
     const char *realname = nullptr;
-    IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
     debuginfo->LookupFunction(addr, &realname);
 
     bp = new Breakpoint(debuginfo, addr, realname, temporary);

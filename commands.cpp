@@ -81,14 +81,17 @@ BreakpointCommand::Accept(const std::string& command, const std::string& params)
 
   bool isTemporary = !command.rfind("tb", 0);
 
-  Breakpoint *bp;
+  IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
+  Breakpoint *bp = nullptr;
   // User specified a line number
   if (isdigit(breakpoint_location[0])) {
     bp = debugger_->breakpoints().AddBreakpoint(filename, strtol(breakpoint_location.c_str(), NULL, 10) - 1, isTemporary);
   }
   // User wants to add a breakpoint at the current location
   else if (breakpoint_location[0] == '.') {
-    bp = debugger_->breakpoints().AddBreakpoint(filename, debugger_->cip(), isTemporary);
+    uint32_t bpline = 0;
+    if (debuginfo->LookupLine(debugger_->cip(), &bpline) == SP_ERROR_NONE)
+      bp = debugger_->breakpoints().AddBreakpoint(filename, debugger_->cip(), isTemporary);
   }
   // User specified a function name
   else {
@@ -101,7 +104,6 @@ BreakpointCommand::Accept(const std::string& command, const std::string& params)
   }
   
   uint32_t bpline = 0;
-  IPluginDebugInfo *debuginfo = debugger_->GetDebugInfo();
   debuginfo->LookupLine(bp->addr(), &bpline);
   printf("Set breakpoint %zu in file %s on line %d", debugger_->breakpoints().GetBreakpointCount(), SkipPath(filename.c_str()), bpline);
   if (bp->name() != nullptr)

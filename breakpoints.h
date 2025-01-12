@@ -44,7 +44,7 @@ class BreakpointManager {
 public:
   BreakpointManager(Debugger* debugger) : debugger_(debugger) {}
   bool Initialize();
-  Breakpoint *AddBreakpoint(const std::string& file, cell_t addr, bool temporary);
+  Breakpoint *AddBreakpoint(const std::string& file, cell_t line, bool temporary);
   Breakpoint *AddBreakpoint(const std::string& file, const std::string& function, bool temporary);
   bool ClearBreakpoint(int number);
   bool ClearBreakpoint(Breakpoint *);
