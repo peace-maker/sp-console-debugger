@@ -1,26 +1,46 @@
 dbg> ---- START DEBUG ----
+OUTPUT: locInteger = 7
+OUTPUT: locFloat = 8.000000
+OUTPUT: locString = local variable
+OUTPUT: locIntArray[5] = 51
+OUTPUT: locFloatArray[7] = 51.509998
+OUTPUT: locStringArray[1] = Twenty
 OUTPUT: argInteger = 5
 OUTPUT: argFloat = 6.000000
+OUTPUT: argString = some string
+OUTPUT: argIntArray[5] = 443
+OUTPUT: argFloatArray[7] = 443.429992
+OUTPUT: argStringArray[1] = FiftyFour
+OUTPUT: argEnumStruct.esInteger = 66
+OUTPUT: argEnumStruct.esFloat = 66.660003
+OUTPUT: argEnumStruct.esString = some enumstruct
 OUTPUT: g_Integer = 42
 OUTPUT: g_Float = 42.419998
 OUTPUT: g_String = FortyTwo
 OUTPUT: g_IntArray[5] = 43
 OUTPUT: g_FloatArray[7] = 43.430000
-BREAK at line 35 in debugger_test.sp in BreakHere
-dbg> glb	<   0x99c>	char[][2] g_StringArray	NULL_STRING
-glb	<   0x94c>	float g_FloatArray[20]	{?,?,?,?,?,...}
-glb	<   0x8fc>	int g_IntArray[20]	{3072,6144,0,0,0,...}
-glb	<   0x8f0>	char g_String[9]	NULL_STRING
+OUTPUT: g_StringArray[1] = FortyFour
+OUTPUT: g_IntMultiArray[1][3] = 45
+BREAK at line 81 in debugger_test.sp in BreakHere
+dbg> glb	<   0x9bc>	int g_IntMultiArray[4][4]	(multi-dimensional array)
+glb	<   0x99c>	char[][2] g_StringArray	(multi-dimensional array)
+glb	<   0x94c>	float g_FloatArray[20]	{43.430000,43.430000,43.430000,43.430000,43.430000,...}
+glb	<   0x8fc>	int g_IntArray[20]	{43,43,43,43,43,...}
+glb	<   0x8f0>	char g_String[9]	"FortyTwo"
 glb	<   0x8ec>	float g_Float	42.419998
 glb	<   0x8e8>	int g_Integer	42
 glb	<   0x8e4>	const int MaxClients	0
 glb	<    0x54>	const Extension __ext_core	68
-glb	<    0x40>	const char NULL_STRING[1]	"1.13.0.7190"
-glb	<    0x34>	float NULL_VECTOR[3]	{0.000000,0.000010,0.000000}
+glb	<    0x40>	const char NULL_STRING[1]	NULL_STRING
+glb	<    0x34>	float NULL_VECTOR[3]	{0.000000,0.000000,0.000000}
 glb	<    0x24>	const PlVers __version	7
 glb	<0x80000000>	const int cellmin	?
-arg	<  0x4b40>	float argFloat	6.000000
-arg	<  0x4b3c>	int argInteger	5
+arg	<  0x50e0>	SomeStruct argEnumStruct[10]	{esInteger: 66, esFloat: 66.660004, esString: (array)}
+arg	<  0x50dc>	char[][] argStringArray	(multi-dimensional array)
+arg	<  0x50d8>	float[] argFloatArray	{443.429993,...}
+arg	<  0x50d4>	int[] argIntArray	{443,...}
+arg	<  0x50d0>	char[] argString	"some string"
+arg	<  0x50cc>	float argFloat	6.000000
+arg	<  0x50c8>	int argInteger	5
 dbg> Clearing all breakpoints. Running normally.
-OUTPUT: g_StringArray[1] = FortyFour
 ---- STOP DEBUG ----

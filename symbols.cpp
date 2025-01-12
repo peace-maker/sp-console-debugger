@@ -203,7 +203,7 @@ SymbolWrapper::DisplayVariable(uint32_t index[], uint32_t idxlevel)
   else if (type->isArray() && idxlevel == 0)
   {
     // Print string
-    if (type->isString()) {
+    if (type->isString() && type->dimcount() == 1) {
       const char *str = GetSymbolString();
       if (str != nullptr)
         printf("\"%s\"", str); // TODO: truncate to 40 chars
@@ -317,8 +317,8 @@ SymbolWrapper::GetSymbolValue(uint32_t index, cell_t* value)
   if (index > 0 && !symbol_->type()->isArray())
     return false;
 
-  // Index out of bounds.
-  if (symbol_->type()->dimcount() > 0 && index >= symbol_->type()->dimension(0))
+  // Index out of bounds. Assume at least one entry for arrays with unknown size.
+  if (symbol_->type()->dimcount() > 0 && index >= symbol_->type()->dimension(0) && (!symbol_->type()->isArray() || symbol_->type()->dimension(0) != 0 || index != 0))
     return false;
 
   cell_t addr;
@@ -353,7 +353,7 @@ SymbolWrapper::SetSymbolValue(uint32_t index, cell_t value)
     return false;
 
   // Index out of bounds.
-  if (symbol_->type()->dimcount() > 0 && index >= symbol_->type()->dimension(0))
+  if (symbol_->type()->dimcount() > 0 && index >= symbol_->type()->dimension(0) && (!symbol_->type()->isArray() || symbol_->type()->dimension(0) != 0 || index != 0))
     return false;
 
   cell_t addr;
@@ -412,7 +412,7 @@ SymbolWrapper::GetEffectiveSymbolAddress(cell_t *address)
 
   // a reference. arrays are always passed by reference.
   cell_t *addr;
-  if (symbol_->type()->isReference() || symbol_->type()->isArray()) {
+  if (symbol_->type()->isReference() || (symbol_->type()->isArray() && debugger_->ctx()->GetRuntime()->UsesDirectArrays() && (symbol_->scope() == SourcePawn::Argument || symbol_->scope() == SourcePawn::Local))) {
     if (debugger_->ctx()->LocalToPhysAddr(base, &addr) != SP_ERROR_NONE)
       return false;
 
@@ -468,9 +468,12 @@ SymbolWrapper::renderType(const SourcePawn::ISymbolType* type, const std::string
     bool hasPostDimensions = true;
     std::stringstream dimensions;
     for (uint32_t dim = 0; dim < type->dimcount(); dim++) {
-      if (type->dimension(dim) > 0)
-        dimensions << '[' << type->dimension(dim) << ']';
-      else {
+      if (type->dimension(dim) > 0) {
+        uint32_t dimsize = type->dimension(dim);
+        if (dim == type->dimcount() - 1 && type->isString() && !debugger_->ctx()->GetRuntime()->UsesDirectArrays())
+          dimsize *= 4;
+        dimensions << '[' << dimsize << ']';
+      } else {
         dimensions << "[]";
         hasPostDimensions = false;
       }
