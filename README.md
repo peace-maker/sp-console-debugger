@@ -54,7 +54,7 @@ Available commands:
 
 ## Installation
 
-Build artifacts are uploaded as artifacts in the Github Actions CI. Have a look at [the latest run](https://github.com/peace-maker/sp-console-debugger/actions) and download the archive matching the operating system of your server. It includes a SourcePawn VM build which includes the [required changes](https://github.com/peace-maker/sourcepawn/tree/debug_api_symbols) to expose information about the debug symbols in a plugin.
+Build artifacts are uploaded as artifacts in the Github Actions CI. Have a look at [the latest run](https://github.com/peace-maker/sp-console-debugger/actions/workflows/build.yml) and download the archive matching the operating system of your server. It includes a SourcePawn VM build which includes the [required changes](https://github.com/peace-maker/sourcepawn/tree/debug_api_symbols) to expose information about the debug symbols in a plugin.
 
 ## Building
 
