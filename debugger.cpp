@@ -50,7 +50,13 @@ Debugger::Debugger(IPluginContext *context)
   is_breakpoint_(false),
   active_(false),
   breakpoints_(this),
-  symbols_(this)
+  symbols_(this),
+
+  cip_(0),
+  frm_(0),
+  frame_count_(0),
+  selected_frame_(0),
+  selected_context_(context)
 {
   commands_.push_back(std::make_shared<BacktraceCommand>(this));
   commands_.push_back(std::make_shared<BreakpointCommand>(this));
