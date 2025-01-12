@@ -1,0 +1,26 @@
+dbg> ---- START DEBUG ----
+OUTPUT: argInteger = 5
+OUTPUT: argFloat = 6.000000
+OUTPUT: g_Integer = 42
+OUTPUT: g_Float = 42.419998
+OUTPUT: g_String = FortyTwo
+OUTPUT: g_IntArray[5] = 43
+OUTPUT: g_FloatArray[7] = 43.430000
+BREAK at line 35 in debugger_test.sp in BreakHere
+dbg> glb	<   0x99c>	char[][2] g_StringArray	NULL_STRING
+glb	<   0x94c>	float g_FloatArray[20]	{?,?,?,?,?,...}
+glb	<   0x8fc>	int g_IntArray[20]	{3072,6144,0,0,0,...}
+glb	<   0x8f0>	char g_String[9]	NULL_STRING
+glb	<   0x8ec>	float g_Float	42.419998
+glb	<   0x8e8>	int g_Integer	42
+glb	<   0x8e4>	const int MaxClients	0
+glb	<    0x54>	const Extension __ext_core	68
+glb	<    0x40>	const char NULL_STRING[1]	"1.13.0.7190"
+glb	<    0x34>	float NULL_VECTOR[3]	{0.000000,0.000010,0.000000}
+glb	<    0x24>	const PlVers __version	7
+glb	<0x80000000>	const int cellmin	?
+arg	<  0x4b40>	float argFloat	6.000000
+arg	<  0x4b3c>	int argInteger	5
+dbg> Clearing all breakpoints. Running normally.
+OUTPUT: g_StringArray[1] = FortyFour
+---- STOP DEBUG ----

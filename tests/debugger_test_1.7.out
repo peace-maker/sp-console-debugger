@@ -1,0 +1,25 @@
+dbg> ---- START DEBUG ----
+OUTPUT: argInteger = 5
+OUTPUT: argFloat = 6.000000
+OUTPUT: g_Integer = 42
+OUTPUT: g_Float = 42.419998
+OUTPUT: g_String = FortyTwo
+OUTPUT: g_IntArray[5] = 43
+OUTPUT: g_FloatArray[7] = 43.430000
+BREAK at line 35 in debugger_test.sp in BreakHere
+dbg> arg	<  0x5500>	float argFloat	6.000000
+arg	<  0x54fc>	int argInteger	5
+glb	<   0x8ac>	int MaxClients	0
+glb	<    0x44>	char NULL_STRING[1]	"1.7.3-dev+5334"
+glb	<    0x38>	float NULL_VECTOR[3]	{0.000000,67345833532180748304384.000000,0.000000}
+glb	<    0x58>	Extension __ext_core	72
+glb	<    0x28>	PlVers __version	5
+glb	<   0x8b4>	float g_Float	42.419998
+glb	<   0x914>	float g_FloatArray[20]	{?,?,?,?,?,...}
+glb	<   0x8c4>	int g_IntArray[20]	{0,4096,7168,0,0,...}
+glb	<   0x8b0>	int g_Integer	42
+glb	<   0x8b8>	char g_String[3]	NULL_STRING
+glb	<   0x964>	char g_StringArray[2][12]	NULL_STRING
+dbg> Clearing all breakpoints. Running normally.
+OUTPUT: g_StringArray[1] = FortyFour
+---- STOP DEBUG ----

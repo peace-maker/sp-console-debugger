@@ -1,0 +1,37 @@
+name: test
+
+on:
+  pull_request:
+  push:
+jobs:
+  build:
+    name: regression test
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-multilib g++-multilib libstdc++6 lib32stdc++6 \
+            libc6-dev libc6-dev-i386 linux-libc-dev \
+            linux-libc-dev:i386 lib32z1-dev clang
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+
+      - name: Getting own repository
+        uses: actions/checkout@v4
+    
+      - name: Cache test environment
+        uses: actions/cache@v4
+        with:
+            path: tests/mock
+            key: ${{ runner.os }}-tests-mock-${{ hashFiles('tests/setup.sh') }}
+
+      - name: Setup test environment
+        working-directory: tests
+        run: ./setup.sh
+    
+      - name: Run tests
+        working-directory: tests
+        run: ./run_tests.sh
