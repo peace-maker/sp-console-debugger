@@ -239,8 +239,9 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
     // Get the debugger instance.
     Debugger *debugger = GetPluginDebugger(pl->GetBaseContext());
     if (!debugger || !debugger->active()) {
-      rootconsole->ConsolePrint("[SM] Debugger is not active on plugin %s.", name);
-      return;
+      // Start debugging the plugin.
+      StartPluginDebugging(pl->GetBaseContext());
+      debugger->SetRunmode(RUNNING);
     }
 
     BreakpointManager& breakpoints = debugger->breakpoints();
