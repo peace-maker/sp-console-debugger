@@ -299,7 +299,19 @@ ConsoleDebugger::OnRootConsoleCommand(const char *cmdname, const ICommandArgs *a
         rootconsole->ConsolePrint("[SM] Breakpoint removed.");
       else
         rootconsole->ConsolePrint("[SM] Failed to remove breakpoint.");
+    } else {
+      rootconsole->ConsolePrint("[SM] Unknown subcommand \"%s\".", arg);
+      rootconsole->ConsolePrint("[SM] Usage: sm debug bp <#|file> <option>");
+      rootconsole->DrawGenericOption("list", "List breakpoints");
+      rootconsole->DrawGenericOption("add", "Add a breakpoint");
+      rootconsole->DrawGenericOption("remove", "Remove a breakpoint");
     }
+  }  else {
+    rootconsole->ConsolePrint("[SM] Unknown command \"%s\".", cmd);
+    rootconsole->ConsolePrint("SourceMod Debug Menu:");
+    rootconsole->DrawGenericOption("start", "Start debugging a plugin");
+    rootconsole->DrawGenericOption("next", "Start debugging the plugin which is loaded next");
+    rootconsole->DrawGenericOption("bp", "Handle breakpoints in a plugin");
   }
 }
 
