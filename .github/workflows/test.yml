@@ -20,15 +20,15 @@ jobs:
           echo "CXX=clang++" >> $GITHUB_ENV
 
       - name: Getting own repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
       - name: Cache test environment
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
             path: tests/mock
             key: ${{ runner.os }}-tests-mock-${{ hashFiles('tests/setup.sh') }}
